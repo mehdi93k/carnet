@@ -1,17 +1,46 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="night">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Carnet : ton espace de notes reliées, schémas, dictée et fichiers.">
-  <meta name="theme-color" content="#0e0f14">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Carnet : notes reliées, agenda, tâches, révisions, dictée et assistant IA pour les étudiants.">
+  <meta name="theme-color" content="#090c1d" id="theme-color">
   <title>Carnet</title>
+
+  <!-- Application installable (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Carnet">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Polices : interface Geist, titres Manrope, lecture Newsreader, code JetBrains Mono.
+       Les autres polices de l'éditeur ne se chargent que si une note les utilise. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Sans:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Manrope:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+
+  <!-- Thème appliqué avant l'affichage, pour éviter un flash de la mauvaise couleur -->
+  <script>
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('carnet-settings') || '{}');
+        var theme = s.theme === 'day' || (s.theme === 'auto' && matchMedia('(prefers-color-scheme: light)').matches) ? 'day' : 'night';
+        document.documentElement.dataset.theme = theme;
+        if (s.fx === 'low') document.documentElement.dataset.fx = 'low';
+        if (s.accent) document.documentElement.style.setProperty('--accent', s.accent === '#a28bf0' ? '#8b7cff' : s.accent);
+      } catch (e) { /* pas grave : thème par défaut */ }
+    })();
+  </script>
 </head>
 <body>
+<!-- Lumière d'ambiance (décor, derrière tout) -->
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
 <div class="app" id="app">
 
   <!-- ===== Barre latérale ===== -->
@@ -29,23 +58,27 @@
     </div>
 
     <div class="sb-quick">
-      <button class="btn btn-wide" id="sb-new-note"><i data-lucide="square-pen"></i><span>Nouvelle note</span><kbd>Alt N</kbd></button>
-      <button class="search-field" id="search-btn" aria-label="Rechercher une note (Ctrl+O)">
-        <i data-lucide="search"></i><span>Rechercher</span><kbd>Ctrl O</kbd>
+      <div class="new-row">
+        <button class="btn btn-primary btn-wide" id="sb-new-note"><i data-lucide="square-pen"></i><span>Nouvelle note</span><kbd>Alt N</kbd></button>
+        <button class="icon-btn boxed" id="sb-create" title="Créer un événement, une tâche…" aria-label="Créer autre chose" aria-haspopup="menu"><i data-lucide="plus"></i></button>
+      </div>
+      <button class="search-field" id="search-btn" aria-label="Rechercher une note (Ctrl+K)">
+        <i data-lucide="search"></i><span>Rechercher</span><kbd>Ctrl K</kbd>
       </button>
     </div>
 
-    <nav class="nav" aria-label="Vues">
-      <button class="nav-item" data-view="home"><i data-lucide="layout-grid"></i>Accueil</button>
-      <button class="nav-item" data-view="graph"><i data-lucide="network"></i>Graphe</button>
+    <nav class="nav" aria-label="Espaces">
+      <button class="nav-item" data-view="home"><i data-lucide="sun"></i><span>Accueil</span></button>
+      <button class="nav-item" data-view="notes"><i data-lucide="notebook-pen"></i><span>Mes notes</span></button>
+      <button class="nav-item" data-view="agenda"><i data-lucide="calendar-days"></i><span>Agenda</span><span class="nav-badge" id="badge-agenda" hidden></span></button>
+      <button class="nav-item" data-view="tasks"><i data-lucide="circle-check-big"></i><span>Tâches</span><span class="nav-badge" id="badge-tasks" hidden></span></button>
+      <button class="nav-item" data-view="review"><i data-lucide="layers"></i><span>Révisions</span><span class="nav-badge" id="badge-review" hidden></span></button>
+      <button class="nav-item" data-view="ai"><i data-lucide="sparkles"></i><span>Assistant IA</span></button>
+      <button class="nav-item" data-view="qr"><i data-lucide="qr-code"></i><span>QR codes</span></button>
+      <button class="nav-item" data-view="graph"><i data-lucide="network"></i><span>Graphe</span></button>
     </nav>
 
     <div class="sb-scroll">
-      <section class="sb-section">
-        <h2 class="sb-title">Récentes</h2>
-        <ul class="side-list" id="side-recent"></ul>
-      </section>
-
       <section class="sb-section">
         <h2 class="sb-title">Favoris</h2>
         <ul class="side-list" id="fav-list"></ul>
@@ -71,8 +104,9 @@
     </div>
 
     <div class="sb-foot">
-      <button class="nav-item" id="settings-btn"><i data-lucide="settings-2"></i>Paramètres</button>
-      <p class="sync-status"><span class="dot-accent" aria-hidden="true"></span>Enregistré sur cet appareil</p>
+      <button class="nav-item install-item" id="install-btn" hidden><i data-lucide="download"></i><span>Installer l'application</span></button>
+      <button class="nav-item" id="settings-btn"><i data-lucide="settings-2"></i><span>Paramètres</span></button>
+      <p class="sync-status" id="sync-status"><span class="dot-ok" aria-hidden="true"></span><span id="sync-text">Enregistré sur cet appareil</span></p>
     </div>
   </aside>
 
@@ -103,152 +137,394 @@
         <div class="topbar-actions" id="note-actions">
           <button class="icon-btn" id="fav-btn" title="Favori" aria-label="Ajouter aux favoris" aria-pressed="false"><i data-lucide="star"></i></button>
           <button class="icon-btn" id="pin-btn" title="Épingler" aria-label="Épingler la note" aria-pressed="false"><i data-lucide="pin"></i></button>
+          <button class="icon-btn" id="event-btn" title="Ajouter une échéance à l'agenda" aria-label="Ajouter une échéance à l'agenda"><i data-lucide="calendar-plus"></i></button>
           <button class="icon-btn" id="qr-btn" title="QR code de la note" aria-label="QR code de la note"><i data-lucide="qr-code"></i></button>
           <button class="icon-btn" id="more-btn" title="Actions" aria-label="Actions sur la note" aria-haspopup="menu"><i data-lucide="more-horizontal"></i></button>
         </div>
+        <button class="icon-btn boxed create-btn" id="create-btn" title="Créer" aria-label="Créer une note, un événement, une tâche…" aria-haspopup="menu"><i data-lucide="plus"></i></button>
         <button class="icon-btn" id="inspector-toggle" title="Détails (Ctrl+.)" aria-label="Afficher les détails"><i data-lucide="panel-right"></i></button>
       </header>
 
-      <!-- Accueil -->
-      <div class="home" id="home">
-        <div class="home-hero">
-          <svg class="home-art" viewBox="0 0 160 120" aria-hidden="true">
-            <g fill="none" stroke="var(--accent)" stroke-width="1.4">
-              <line x1="40" y1="44" x2="84" y2="30" opacity=".5"/>
-              <line x1="84" y1="30" x2="124" y2="56" opacity=".5"/>
-              <line x1="40" y1="44" x2="70" y2="86" opacity=".5"/>
-              <line x1="70" y1="86" x2="124" y2="56" opacity=".35"/>
-              <line x1="70" y1="86" x2="112" y2="98" opacity=".35"/>
-            </g>
-            <circle cx="40" cy="44" r="6" fill="var(--accent)"/>
-            <circle cx="84" cy="30" r="4" fill="var(--text-2)"/>
-            <circle cx="124" cy="56" r="5" fill="var(--text-2)"/>
-            <circle cx="70" cy="86" r="7" fill="var(--accent)" opacity=".75"/>
-            <circle cx="112" cy="98" r="3.5" fill="var(--text-3)"/>
-          </svg>
-          <div>
-            <h1 class="home-title">Ton second cerveau</h1>
-            <p class="home-sub" id="home-sub"></p>
-          </div>
-        </div>
-        <h2 class="section-title">Reprendre</h2>
-        <ul class="recent" id="recent"></ul>
-        <h2 class="section-title">Dossiers</h2>
-        <ul class="shelf" id="shelf"></ul>
-      </div>
+      <div class="views" id="views">
 
-      <!-- Graphe -->
-      <div class="graph-view" id="graph-view" hidden>
-        <div class="graph-head">
-          <h2 class="section-title">Graphe des notes</h2>
-          <p class="muted" id="graph-count"></p>
-        </div>
-        <div class="graph-box"><canvas id="graph-canvas" aria-label="Graphe des liens entre notes"></canvas></div>
-      </div>
-
-      <!-- Une note ouverte -->
-      <div class="editor-inner" id="editor-inner" hidden>
-        <nav class="tabs" aria-label="Volets de la note">
-          <button class="tab" data-tab="text"><i data-lucide="pen-line"></i>Texte</button>
-          <button class="tab" data-tab="schema"><i data-lucide="workflow"></i>Schéma</button>
-          <button class="tab" data-tab="files"><i data-lucide="paperclip"></i>Fichiers</button>
-        </nav>
-
-        <!-- Volet Texte -->
-        <div class="pane" id="pane-text" data-pane="text">
-          <input class="title-input" id="note-title" placeholder="Sans titre" aria-label="Titre de la note">
-          <div class="meta-row">
-            <p class="meta" id="meta"></p>
-            <div class="cover-row" id="cover-row" aria-label="Couleur de la note"></div>
-          </div>
-
-          <div class="toolbar" id="toolbar">
-            <span class="tool-group">
-              <select id="heading-select" title="Style de paragraphe" aria-label="Style de paragraphe">
-                <option value="p">Texte</option>
-                <option value="h1">Titre 1</option>
-                <option value="h2">Titre 2</option>
-                <option value="h3">Titre 3</option>
-              </select>
-              <select id="font-select" title="Police" aria-label="Police">
-                <option value="">Lecture</option>
-                <option value="'Newsreader', Georgia, serif">Newsreader</option>
-                <option value="'Inter', system-ui, sans-serif">Inter</option>
-                <option value="'Instrument Sans', Inter, system-ui, sans-serif">Instrument Sans</option>
-                <option value="Georgia, serif">Georgia</option>
-                <option value="Arial, sans-serif">Arial</option>
-                <option value="Verdana, sans-serif">Verdana</option>
-                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
-                <option value="Segoe UI, system-ui, sans-serif">Segoe UI</option>
-              </select>
-              <select id="size-select" title="Taille" aria-label="Taille">
-                <option value="14">14</option>
-                <option value="16">16</option>
-                <option value="18" selected>18</option>
-                <option value="22">22</option>
-                <option value="28">28</option>
-              </select>
-            </span>
-            <span class="tool-sep"></span>
-            <span class="tool-group">
-              <button data-cmd="bold" title="Gras (Ctrl+B)" aria-label="Gras"><i data-lucide="bold"></i></button>
-              <button data-cmd="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i data-lucide="italic"></i></button>
-              <button data-cmd="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><i data-lucide="underline"></i></button>
-              <label class="swatch" title="Couleur du texte">
-                <input type="color" id="color-input" value="#a28bf0" aria-label="Couleur du texte">
-                <span class="swatch-letter">A</span>
-              </label>
-              <label class="swatch" title="Surlignage">
-                <input type="color" id="highlight-input" value="#5b4a1e" aria-label="Surlignage">
-                <span class="swatch-letter highlight">A</span>
-              </label>
-            </span>
-            <span class="tool-sep"></span>
-            <span class="tool-group">
-              <button data-cmd="insertUnorderedList" title="Liste à puces (- espace)" aria-label="Liste à puces"><i data-lucide="list"></i></button>
-              <button data-cmd="insertOrderedList" title="Liste numérotée (1. espace)" aria-label="Liste numérotée"><i data-lucide="list-ordered"></i></button>
-              <button data-block="blockquote" title="Citation (> espace)" aria-label="Citation"><i data-lucide="quote"></i></button>
-              <button data-block="pre" title="Bloc de code" aria-label="Bloc de code"><i data-lucide="code"></i></button>
-            </span>
-            <span class="tool-sep"></span>
-            <span class="tool-group">
-              <button data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche"><i data-lucide="align-left"></i></button>
-              <button data-cmd="justifyCenter" title="Centrer" aria-label="Centrer"><i data-lucide="align-center"></i></button>
-              <button data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><i data-lucide="eraser"></i></button>
-            </span>
-            <button class="mic-btn" id="dictate-btn" aria-pressed="false" title="Dicter (reconnaissance vocale)"><i data-lucide="mic"></i><span>Dicter</span></button>
-          </div>
-          <span class="dictation-status" id="dictation-status" hidden>Je t’écoute</span>
-
-          <div class="note-body" id="note-body" contenteditable="true" spellcheck="true"
-               data-placeholder="Écris, ou tape # pour un titre, - pour une liste, > pour une citation. [[Titre]] relie une autre note."></div>
-        </div>
-
-        <!-- Volet Schéma -->
-        <div class="pane" id="pane-schema" data-pane="schema" hidden>
-          <div class="toolbar">
-            <span class="tool-group">
-              <button class="pill-btn" id="schema-add"><i data-lucide="plus"></i>Carte</button>
-              <button class="pill-btn" id="schema-link" aria-pressed="false"><i data-lucide="git-commit-horizontal"></i>Relier</button>
-              <button class="pill-btn" id="schema-delete"><i data-lucide="trash-2"></i>Supprimer</button>
-            </span>
-            <span class="muted hint" id="schema-hint"></span>
-          </div>
-          <div class="board" id="board"></div>
-        </div>
-
-        <!-- Volet Fichiers -->
-        <div class="pane" id="pane-files" data-pane="files" hidden>
-          <div class="drop-zone" id="drop-zone">
-            <i data-lucide="upload-cloud"></i>
-            <p>Glisse des fichiers ici</p>
-            <div class="drop-actions">
-              <button class="pill-btn" id="pick-files"><i data-lucide="paperclip"></i>Choisir des fichiers</button>
-              <button class="pill-btn primary" id="scan-btn"><i data-lucide="scan-line"></i>Scanner un document</button>
+        <!-- Accueil : la journée en un coup d'œil -->
+        <div class="page home" data-page="home" hidden>
+          <header class="home-hero">
+            <div class="hero-text">
+              <p class="eyebrow" id="home-date"></p>
+              <h1 class="display" id="home-greeting">Bonjour</h1>
+              <p class="lede" id="home-sub"></p>
             </div>
-            <input type="file" id="file-input" multiple hidden>
+            <div class="quick-actions" id="quick-actions">
+              <button class="quick glow" data-quick="note"><i data-lucide="square-pen"></i><span>Nouvelle note</span></button>
+              <button class="quick glow" data-quick="event"><i data-lucide="calendar-plus"></i><span>Événement</span></button>
+              <button class="quick glow" data-quick="task"><i data-lucide="list-plus"></i><span>Tâche</span></button>
+              <button class="quick glow" data-quick="review"><i data-lucide="layers"></i><span>Réviser</span></button>
+            </div>
+          </header>
+
+          <div class="home-grid">
+            <section class="panel today-panel glow" aria-labelledby="today-title">
+              <div class="panel-head">
+                <h2 class="panel-title" id="today-title">Aujourd'hui</h2>
+                <button class="link-btn" data-goto="agenda">Agenda <i data-lucide="arrow-right"></i></button>
+              </div>
+              <ol class="timeline" id="today-list"></ol>
+            </section>
+
+            <section class="panel" aria-labelledby="exam-title">
+              <div class="panel-head">
+                <h2 class="panel-title" id="exam-title">Prochains examens</h2>
+              </div>
+              <ul class="exam-list" id="exam-list"></ul>
+            </section>
+
+            <section class="panel" aria-labelledby="home-tasks-title">
+              <div class="panel-head">
+                <h2 class="panel-title" id="home-tasks-title">À terminer</h2>
+                <button class="link-btn" data-goto="tasks">Tout voir <i data-lucide="arrow-right"></i></button>
+              </div>
+              <ul class="task-list compact" id="home-tasks"></ul>
+            </section>
+
+            <section class="panel review-panel" aria-labelledby="home-review-title">
+              <div class="panel-head">
+                <h2 class="panel-title" id="home-review-title">Révisions</h2>
+              </div>
+              <div id="home-review"></div>
+            </section>
           </div>
-          <ul class="file-list" id="file-list"></ul>
+
+          <section class="home-recent">
+            <h2 class="section-title">Reprendre</h2>
+            <ul class="recent" id="recent"></ul>
+          </section>
+        </div>
+
+        <!-- Mes notes, sans note ouverte : les dossiers -->
+        <div class="page notes-home" id="notes-empty" hidden>
+          <header class="page-head">
+            <div>
+              <h1 class="page-title">Mes notes</h1>
+              <p class="muted" id="notes-home-sub"></p>
+            </div>
+            <button class="btn btn-primary" id="notes-home-new"><i data-lucide="square-pen"></i><span>Nouvelle note</span></button>
+          </header>
+          <ul class="shelf" id="shelf"></ul>
+          <p class="tip">Astuce : écris <code>[[Titre]]</code> pour relier deux notes, et <code>#tag</code> pour les classer par thème.</p>
+        </div>
+
+        <!-- Agenda -->
+        <div class="page agenda" data-page="agenda" hidden>
+          <header class="page-head agenda-head">
+            <div>
+              <h1 class="page-title" id="agenda-title">Agenda</h1>
+              <p class="muted" id="agenda-sub"></p>
+            </div>
+            <div class="agenda-controls">
+              <div class="seg" id="agenda-mode" role="group" aria-label="Affichage">
+                <button data-mode="month">Mois</button>
+                <button data-mode="week">Semaine</button>
+                <button data-mode="day">Jour</button>
+              </div>
+              <div class="arrows">
+                <button class="icon-btn boxed" id="agenda-prev" aria-label="Période précédente"><i data-lucide="chevron-left"></i></button>
+                <button class="pill-btn" id="agenda-today">Aujourd'hui</button>
+                <button class="icon-btn boxed" id="agenda-next" aria-label="Période suivante"><i data-lucide="chevron-right"></i></button>
+              </div>
+              <button class="btn btn-primary" id="agenda-add"><i data-lucide="plus"></i><span>Événement</span></button>
+            </div>
+          </header>
+          <div class="agenda-body">
+            <div class="cal" id="cal"></div>
+            <aside class="panel upcoming" aria-labelledby="upcoming-title">
+              <h2 class="panel-title" id="upcoming-title">À venir</h2>
+              <ul class="upcoming-list" id="upcoming"></ul>
+              <ul class="legend" id="legend" aria-label="Types d'événements"></ul>
+            </aside>
+          </div>
+        </div>
+
+        <!-- Tâches -->
+        <div class="page tasks" data-page="tasks" hidden>
+          <header class="page-head">
+            <div>
+              <h1 class="page-title">Tâches</h1>
+              <p class="muted" id="tasks-sub"></p>
+            </div>
+          </header>
+          <form class="task-composer panel" id="task-form" novalidate>
+            <i data-lucide="circle-plus" aria-hidden="true"></i>
+            <input id="task-input" maxlength="200" placeholder="Ajouter une tâche… ex. Finir le DM de maths" aria-label="Nouvelle tâche" autocomplete="off">
+            <label class="date-chip" title="Échéance">
+              <i data-lucide="calendar"></i>
+              <input type="date" id="task-due" aria-label="Échéance (facultatif)">
+            </label>
+            <button class="btn btn-primary" type="submit">Ajouter</button>
+          </form>
+          <p class="form-error" id="task-error" hidden></p>
+          <div class="task-groups" id="task-groups"></div>
+        </div>
+
+        <!-- Révisions -->
+        <div class="page review" data-page="review" hidden>
+          <header class="page-head">
+            <div>
+              <h1 class="page-title">Révisions</h1>
+              <p class="muted" id="review-sub"></p>
+            </div>
+            <div class="head-actions">
+              <button class="pill-btn" id="cards-import"><i data-lucide="file-down"></i>Importer de mes notes</button>
+              <button class="pill-btn" id="cards-ai"><i data-lucide="sparkles"></i>Générer avec l'IA</button>
+              <button class="btn btn-primary" id="card-new"><i data-lucide="plus"></i><span>Nouvelle carte</span></button>
+            </div>
+          </header>
+          <div id="review-body"></div>
+          <p class="tip">Astuce : dans une note, écris une ligne <code>Question :: Réponse</code>, puis « Importer de mes notes ».</p>
+        </div>
+
+        <!-- Assistant IA -->
+        <div class="page ai" data-page="ai" hidden>
+          <header class="page-head">
+            <div>
+              <h1 class="page-title">Assistant IA</h1>
+              <p class="muted">Résumer, expliquer, réviser : l'IA travaille seulement sur le texte que tu choisis.</p>
+            </div>
+            <span class="status-pill" id="ai-status"></span>
+          </header>
+
+          <div class="ai-setup panel" id="ai-setup" hidden></div>
+
+          <div class="ai-layout" id="ai-main">
+            <section class="panel ai-source" aria-labelledby="ai-source-title">
+              <h2 class="panel-title" id="ai-source-title">1. Sur quoi ?</h2>
+              <div class="seg" id="ai-source-mode" role="group" aria-label="Source">
+                <button data-source="note">Une note</button>
+                <button data-source="text">Un texte collé</button>
+              </div>
+              <select class="select" id="ai-note" aria-label="Note à utiliser"></select>
+              <textarea class="textarea" id="ai-text" rows="7" placeholder="Colle ici un paragraphe ou un cours…" aria-label="Texte à utiliser" hidden></textarea>
+              <p class="muted" id="ai-count"></p>
+
+              <h2 class="panel-title">2. Que faire ?</h2>
+              <div class="ai-actions" id="ai-actions"></div>
+              <form class="ai-ask" id="ai-ask">
+                <input class="input" id="ai-question" maxlength="1000" placeholder="Ou pose une question sur ce texte…" aria-label="Question">
+                <button class="btn btn-primary" type="submit" aria-label="Envoyer la question"><i data-lucide="send-horizontal"></i></button>
+              </form>
+              <p class="privacy"><i data-lucide="shield-check"></i>Rien ne part sans ton clic. Seul le texte choisi est envoyé à ton serveur IA, puis à Claude (Anthropic).</p>
+            </section>
+            <section class="panel ai-result" id="ai-result" aria-live="polite"></section>
+          </div>
+        </div>
+
+        <!-- QR codes -->
+        <div class="page qr" data-page="qr" hidden>
+          <header class="page-head">
+            <div>
+              <h1 class="page-title">QR codes</h1>
+              <p class="muted">Passe une note, un lien ou un texte d'un appareil à l'autre.</p>
+            </div>
+            <div class="seg" id="qr-tabs" role="group" aria-label="Mode">
+              <button data-qrtab="create">Créer</button>
+              <button data-qrtab="receive">Recevoir une note</button>
+            </div>
+          </header>
+
+          <div class="qr-layout" id="qr-create">
+            <section class="panel qr-steps">
+              <h2 class="panel-title">1. Que veux-tu partager ?</h2>
+              <div class="choice-row" id="qr-kind" role="radiogroup" aria-label="Contenu du QR code">
+                <button class="choice glow" data-kind="note" role="radio"><i data-lucide="file-text"></i><strong>Une note</strong><span>Son texte, pour l'ouvrir sur un autre appareil</span></button>
+                <button class="choice glow" data-kind="link" role="radio"><i data-lucide="link"></i><strong>Un lien</strong><span>Une adresse de site web</span></button>
+                <button class="choice glow" data-kind="text" role="radio"><i data-lucide="type"></i><strong>Du texte</strong><span>Un mot de passe Wi-Fi, un numéro…</span></button>
+              </div>
+
+              <h2 class="panel-title">2. Le contenu</h2>
+              <div id="qr-input-area">
+                <select class="select" id="qr-note" aria-label="Note à partager"></select>
+                <input class="input" id="qr-link" type="url" inputmode="url" placeholder="https://…" aria-label="Lien" hidden>
+                <textarea class="textarea" id="qr-text" rows="4" maxlength="1200" placeholder="Ton texte…" aria-label="Texte" hidden></textarea>
+              </div>
+              <p class="form-error" id="qr-error" hidden></p>
+              <p class="notice" id="qr-privacy" hidden><i data-lucide="eye"></i><span>La note est écrite <strong>dans</strong> le QR code : toute personne qui le scanne pourra la lire. Elle n'est publiée nulle part sur Internet.</span></p>
+
+              <details class="explain">
+                <summary>Texte ou lien : quelle différence ?</summary>
+                <p><strong>QR code « texte »</strong> : le contenu est dans le dessin lui-même. Pas besoin d'Internet pour le lire, mais il est limité à environ 2 000 caractères, et toute personne qui le scanne voit le texte.</p>
+                <p><strong>QR code « lien »</strong> : le dessin contient seulement une adresse. Le contenu reste sur la page web, qui doit être accessible à la personne qui scanne.</p>
+                <p><strong>QR code « note »</strong> : c'est un lien vers Carnet qui contient aussi le texte de la note. Le téléphone ouvre Carnet et propose d'ajouter la note. Le texte reste dans le QR code : il n'est pas envoyé sur un serveur.</p>
+              </details>
+            </section>
+
+            <section class="panel qr-preview" aria-labelledby="qr-preview-title">
+              <h2 class="panel-title" id="qr-preview-title">3. Ton QR code</h2>
+              <div class="qr-stage" id="qr-stage">
+                <div class="qr-box" id="qr-box"></div>
+                <p class="qr-empty" id="qr-empty">Choisis ce que tu veux partager : l'aperçu apparaît ici.</p>
+              </div>
+              <p class="qr-caption" id="qr-caption"></p>
+              <div class="qr-actions">
+                <button class="btn btn-primary" id="qr-download" disabled><i data-lucide="download"></i><span>Télécharger</span></button>
+                <button class="pill-btn" id="qr-copy" disabled><i data-lucide="copy"></i>Copier l'image</button>
+                <button class="pill-btn" id="qr-share" disabled hidden><i data-lucide="share-2"></i>Partager</button>
+              </div>
+              <p class="how"><i data-lucide="smartphone"></i>Pour le lire : ouvre l'appareil photo du téléphone et vise le QR code, puis touche le lien qui apparaît.</p>
+            </section>
+          </div>
+
+          <div class="qr-receive panel" id="qr-receive" hidden>
+            <h2 class="panel-title">Recevoir une note</h2>
+            <ol class="how-steps">
+              <li>Sur l'appareil qui a la note : <strong>QR codes → Une note</strong>.</li>
+              <li>Sur ce téléphone : ouvre l'<strong>appareil photo</strong> et vise le QR code.</li>
+              <li>Touche le lien : Carnet s'ouvre et te propose d'ajouter la note.</li>
+            </ol>
+            <p class="muted">L'appareil photo ne lit pas le QR code ? Prends-le en photo et choisis la photo ici :</p>
+            <div class="row-actions">
+              <button class="btn btn-primary" id="qr-photo-btn"><i data-lucide="image"></i><span>Lire une photo de QR code</span></button>
+            </div>
+            <input type="file" id="qr-photo-input" accept="image/*" hidden>
+            <details class="explain">
+              <summary>J'ai un ancien code qui commence par « carnet: »</summary>
+              <label class="field">Colle le texte du QR code
+                <textarea class="textarea mono" id="qr-paste" rows="3" placeholder="carnet:…"></textarea>
+              </label>
+              <button class="pill-btn" id="qr-paste-btn">Ajouter la note</button>
+            </details>
+          </div>
+        </div>
+
+        <!-- Graphe -->
+        <div class="page graph-view" data-page="graph" hidden>
+          <header class="page-head">
+            <div>
+              <h1 class="page-title">Graphe des notes</h1>
+              <p class="muted" id="graph-count"></p>
+            </div>
+          </header>
+          <div class="graph-box"><canvas id="graph-canvas" aria-label="Graphe des liens entre notes"></canvas></div>
+        </div>
+
+        <!-- Une note ouverte -->
+        <div class="editor-inner" id="editor-inner" hidden>
+          <nav class="tabs" aria-label="Volets de la note">
+            <button class="tab" data-tab="text"><i data-lucide="pen-line"></i>Texte</button>
+            <button class="tab" data-tab="schema"><i data-lucide="workflow"></i>Schéma</button>
+            <button class="tab" data-tab="files"><i data-lucide="paperclip"></i>Fichiers</button>
+          </nav>
+
+          <!-- Volet Texte -->
+          <div class="pane" id="pane-text" data-pane="text">
+            <input class="title-input" id="note-title" placeholder="Sans titre" aria-label="Titre de la note">
+            <div class="meta-row">
+              <p class="meta" id="meta"></p>
+              <div class="cover-row" id="cover-row" aria-label="Couleur de la note"></div>
+            </div>
+
+            <div class="toolbar" id="toolbar">
+              <span class="tool-group">
+                <select id="heading-select" title="Style de paragraphe" aria-label="Style de paragraphe">
+                  <option value="p">Texte</option>
+                  <option value="h1">Titre 1</option>
+                  <option value="h2">Titre 2</option>
+                  <option value="h3">Titre 3</option>
+                </select>
+                <select id="font-select" title="Police" aria-label="Police"></select>
+                <select id="size-select" title="Taille" aria-label="Taille">
+                  <option value="14">14</option>
+                  <option value="16">16</option>
+                  <option value="18" selected>18</option>
+                  <option value="22">22</option>
+                  <option value="28">28</option>
+                </select>
+              </span>
+              <span class="tool-sep"></span>
+              <span class="tool-group">
+                <button data-cmd="bold" title="Gras (Ctrl+B)" aria-label="Gras"><i data-lucide="bold"></i></button>
+                <button data-cmd="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i data-lucide="italic"></i></button>
+                <button data-cmd="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><i data-lucide="underline"></i></button>
+                <label class="swatch" title="Couleur du texte">
+                  <input type="color" id="color-input" value="#8b7cff" aria-label="Couleur du texte">
+                  <span class="swatch-letter">A</span>
+                </label>
+                <label class="swatch" title="Surlignage">
+                  <input type="color" id="highlight-input" value="#5b4a1e" aria-label="Surlignage">
+                  <span class="swatch-letter highlight">A</span>
+                </label>
+              </span>
+              <span class="tool-sep"></span>
+              <span class="tool-group">
+                <button data-cmd="insertUnorderedList" title="Liste à puces (- espace)" aria-label="Liste à puces"><i data-lucide="list"></i></button>
+                <button data-cmd="insertOrderedList" title="Liste numérotée (1. espace)" aria-label="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+                <button data-block="blockquote" title="Citation (> espace)" aria-label="Citation"><i data-lucide="quote"></i></button>
+                <button data-block="pre" title="Bloc de code" aria-label="Bloc de code"><i data-lucide="code"></i></button>
+              </span>
+              <span class="tool-sep"></span>
+              <span class="tool-group">
+                <button data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche"><i data-lucide="align-left"></i></button>
+                <button data-cmd="justifyCenter" title="Centrer" aria-label="Centrer"><i data-lucide="align-center"></i></button>
+                <button data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><i data-lucide="eraser"></i></button>
+              </span>
+              <span class="tool-end">
+                <button class="tool-pill ai-pill" id="note-ai-btn" title="Assistant IA sur la sélection ou la note" aria-haspopup="menu"><i data-lucide="sparkles"></i><span>IA</span></button>
+                <button class="tool-pill mic-btn" id="dictate-btn" aria-pressed="false" title="Dicter (reconnaissance vocale)"><i data-lucide="mic"></i><span>Dicter</span></button>
+              </span>
+            </div>
+
+            <!-- Dictée : on parle, on relit, on insère -->
+            <div class="dictation" id="dictation" hidden>
+              <div class="dict-head">
+                <span class="dict-orb" aria-hidden="true"><span></span></span>
+                <div class="dict-status">
+                  <strong id="dict-state">Dictée</strong>
+                  <span class="muted" id="dict-hint"></span>
+                </div>
+                <button class="icon-btn small" id="dict-close" aria-label="Fermer la dictée"><i data-lucide="x"></i></button>
+              </div>
+              <div class="dict-intro" id="dict-intro" hidden></div>
+              <div class="dict-live" id="dict-live">
+                <textarea class="textarea" id="dict-text" rows="3" placeholder="Le texte dicté s'affiche ici. Tu peux le corriger avant de l'insérer." aria-label="Texte dicté"></textarea>
+                <p class="dict-interim" id="dict-interim" aria-live="polite"></p>
+              </div>
+              <p class="form-error" id="dict-error" hidden></p>
+              <div class="dict-actions">
+                <button class="btn btn-primary" id="dict-toggle"><i data-lucide="mic"></i><span>Écouter</span></button>
+                <button class="pill-btn" id="dict-clear"><i data-lucide="eraser"></i>Effacer</button>
+                <button class="pill-btn primary-soft" id="dict-insert"><i data-lucide="corner-down-left"></i>Insérer dans la note</button>
+              </div>
+            </div>
+
+            <div class="note-body" id="note-body" contenteditable="true" spellcheck="true"
+                 data-placeholder="Écris, ou tape # pour un titre, - pour une liste, > pour une citation. [[Titre]] relie une autre note."></div>
+          </div>
+
+          <!-- Volet Schéma -->
+          <div class="pane" id="pane-schema" data-pane="schema" hidden>
+            <div class="toolbar">
+              <span class="tool-group">
+                <button class="pill-btn" id="schema-add"><i data-lucide="plus"></i>Carte</button>
+                <button class="pill-btn" id="schema-link" aria-pressed="false"><i data-lucide="git-commit-horizontal"></i>Relier</button>
+                <button class="pill-btn" id="schema-delete"><i data-lucide="trash-2"></i>Supprimer</button>
+              </span>
+              <span class="muted hint" id="schema-hint"></span>
+            </div>
+            <div class="board" id="board"></div>
+          </div>
+
+          <!-- Volet Fichiers -->
+          <div class="pane" id="pane-files" data-pane="files" hidden>
+            <div class="drop-zone" id="drop-zone">
+              <i data-lucide="upload-cloud"></i>
+              <p>Glisse des fichiers ici</p>
+              <div class="drop-actions">
+                <button class="pill-btn" id="pick-files"><i data-lucide="paperclip"></i>Choisir des fichiers</button>
+                <button class="btn btn-primary" id="scan-btn"><i data-lucide="scan-line"></i><span>Scanner un document</span></button>
+              </div>
+              <input type="file" id="file-input" multiple hidden>
+            </div>
+            <ul class="file-list" id="file-list"></ul>
+          </div>
         </div>
       </div>
     </section>
@@ -263,6 +539,13 @@
         <section class="insp-sec">
           <h3 class="insp-title">Propriétés</h3>
           <dl class="props" id="props"></dl>
+        </section>
+        <section class="insp-sec">
+          <div class="insp-title-row">
+            <h3 class="insp-title">Agenda et tâches</h3>
+            <button class="icon-btn small" id="insp-add-event" title="Ajouter une échéance" aria-label="Ajouter une échéance"><i data-lucide="calendar-plus"></i></button>
+          </div>
+          <ul class="link-list" id="note-events"></ul>
         </section>
         <section class="insp-sec">
           <h3 class="insp-title">Tags</h3>
@@ -280,12 +563,21 @@
       <p class="insp-empty" id="insp-empty">Ouvre une note pour voir ses détails.</p>
     </aside>
   </div>
+
+  <!-- Barre d'onglets du téléphone -->
+  <nav class="tabbar" id="tabbar" aria-label="Espaces">
+    <button data-view="home"><i data-lucide="sun"></i><span>Accueil</span></button>
+    <button data-view="notes"><i data-lucide="notebook-pen"></i><span>Notes</span></button>
+    <button data-view="agenda"><i data-lucide="calendar-days"></i><span>Agenda</span></button>
+    <button data-view="tasks"><i data-lucide="circle-check-big"></i><span>Tâches</span></button>
+    <button data-open-menu><i data-lucide="menu"></i><span>Plus</span></button>
+  </nav>
 </div>
 
 <!-- Menu contextuel (clic droit, ou bouton « … ») -->
 <div class="ctx-menu" id="ctx-menu" role="menu" hidden></div>
 
-<!-- Aller à une note (Ctrl+O) -->
+<!-- Aller à une note (Ctrl+K) -->
 <div class="modal" id="switcher-modal" hidden>
   <div class="modal-card switcher" role="dialog" aria-modal="true" aria-label="Rechercher une note">
     <div class="switch-field">
@@ -300,41 +592,112 @@
 
 <!-- Paramètres -->
 <div class="modal" id="settings-modal" hidden>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Paramètres">
+  <div class="modal-card wide settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
     <div class="modal-head">
-      <h2 class="section-title">Paramètres</h2>
+      <h2 class="modal-title" id="settings-title" tabindex="-1">Paramètres</h2>
       <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
     </div>
-    <div class="setting">
-      <span class="setting-label">Couleur d'accent</span>
-      <div class="accents" id="accents" role="group" aria-label="Couleur d'accent"></div>
-    </div>
-    <label class="setting">
-      <span class="setting-label">Police de lecture</span>
-      <select class="select" id="read-font">
-        <option value="serif">Newsreader (serif, pour lire longtemps)</option>
-        <option value="sans">Inter (sans serif)</option>
-      </select>
-    </label>
-    <label class="setting">
-      <span class="setting-label">Taille du texte</span>
-      <select class="select" id="read-size">
-        <option value="16">Petite</option>
-        <option value="18">Normale</option>
-        <option value="20">Grande</option>
-      </select>
-    </label>
-    <div class="setting">
-      <span class="setting-label">Raccourcis</span>
+
+    <section class="set-group">
+      <h3 class="set-title">Apparence</h3>
+      <div class="setting">
+        <span class="setting-label">Thème</span>
+        <div class="seg" id="theme-seg" role="group" aria-label="Thème">
+          <button data-theme-choice="night">Nuit</button>
+          <button data-theme-choice="day">Jour</button>
+          <button data-theme-choice="auto">Automatique</button>
+        </div>
+      </div>
+      <div class="setting">
+        <span class="setting-label">Couleur d'accent</span>
+        <div class="accents" id="accents" role="group" aria-label="Couleur d'accent"></div>
+      </div>
+      <div class="setting">
+        <span class="setting-label">Effets visuels</span>
+        <div class="seg" id="fx-seg" role="group" aria-label="Effets visuels">
+          <button data-fx="rich">Riches</button>
+          <button data-fx="low">Sobres (ordinateur lent)</button>
+        </div>
+      </div>
+      <label class="setting">
+        <span class="setting-label">Ton prénom (pour l'accueil)</span>
+        <input class="input" id="name-input" maxlength="40" placeholder="Facultatif" autocomplete="given-name">
+      </label>
+    </section>
+
+    <section class="set-group">
+      <h3 class="set-title">Lecture</h3>
+      <label class="setting">
+        <span class="setting-label">Police des notes</span>
+        <select class="select" id="read-font">
+          <option value="serif">Newsreader (serif, pour lire longtemps)</option>
+          <option value="literata">Literata (serif, très lisible)</option>
+          <option value="sans">Geist (sans serif, moderne)</option>
+          <option value="dys">Atkinson Hyperlegible (lettres très distinctes)</option>
+        </select>
+      </label>
+      <label class="setting">
+        <span class="setting-label">Taille du texte</span>
+        <select class="select" id="read-size">
+          <option value="16">Petite</option>
+          <option value="18">Normale</option>
+          <option value="20">Grande</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="set-group">
+      <h3 class="set-title">Assistant IA</h3>
+      <p class="muted">L'IA passe par ton propre petit serveur, qui garde la clé secrète. Sans serveur, l'assistant reste éteint.</p>
+      <label class="setting">
+        <span class="setting-label">Adresse du serveur IA</span>
+        <input class="input mono" id="ai-url" type="url" inputmode="url" placeholder="https://carnet-ia.ton-nom.workers.dev" autocomplete="off">
+      </label>
+      <label class="setting">
+        <span class="setting-label">Code d'accès (si ton serveur en demande un)</span>
+        <input class="input mono" id="ai-code" type="password" autocomplete="off" placeholder="Facultatif">
+      </label>
+      <div class="row-actions">
+        <button class="pill-btn" id="ai-save">Enregistrer</button>
+        <button class="pill-btn" id="ai-consent-reset" hidden>Redemander mon accord avant chaque envoi</button>
+      </div>
+      <p class="form-error" id="ai-url-error" hidden></p>
+    </section>
+
+    <section class="set-group">
+      <h3 class="set-title">Application</h3>
+      <p class="muted" id="install-help"></p>
+      <div class="row-actions">
+        <button class="pill-btn" id="settings-install"><i data-lucide="download"></i>Installer l'application</button>
+        <button class="pill-btn" id="notify-btn"><i data-lucide="bell"></i>Autoriser les rappels</button>
+      </div>
+    </section>
+
+    <section class="set-group">
+      <h3 class="set-title">Mes données</h3>
+      <p class="muted" id="storage-info">Tes notes sont enregistrées sur cet appareil, dans ce navigateur.</p>
+      <div class="row-actions">
+        <button class="pill-btn" id="export-btn"><i data-lucide="hard-drive-download"></i>Exporter une sauvegarde</button>
+        <button class="pill-btn" id="import-btn"><i data-lucide="hard-drive-upload"></i>Importer une sauvegarde</button>
+        <button class="pill-btn" id="persist-btn"><i data-lucide="shield"></i>Protéger contre l'effacement</button>
+      </div>
+      <input type="file" id="import-input" accept="application/json,.json" hidden>
+    </section>
+
+    <section class="set-group">
+      <h3 class="set-title">Raccourcis</h3>
       <dl class="shortcuts">
         <dt><kbd>Alt N</kbd></dt><dd>Nouvelle note</dd>
-        <dt><kbd>Ctrl O</kbd> <kbd>Ctrl K</kbd></dt><dd>Rechercher une note</dd>
+        <dt><kbd>Alt E</kbd></dt><dd>Nouvel événement</dd>
+        <dt><kbd>Alt T</kbd></dt><dd>Nouvelle tâche</dd>
+        <dt><kbd>Ctrl K</kbd> <kbd>Ctrl O</kbd></dt><dd>Rechercher une note</dd>
+        <dt><kbd>Alt 1</kbd> … <kbd>Alt 6</kbd></dt><dd>Accueil, Notes, Agenda, Tâches, Révisions, IA</dd>
         <dt><kbd>#</kbd> <kbd>-</kbd> <kbd>&gt;</kbd></dt><dd>Titre, liste, citation (en début de ligne, puis espace)</dd>
         <dt><kbd>Ctrl \</kbd></dt><dd>Replier le menu</dd>
         <dt><kbd>Ctrl .</kbd></dt><dd>Afficher les détails</dd>
         <dt><kbd>Échap</kbd></dt><dd>Fermer une fenêtre</dd>
       </dl>
-    </div>
+    </section>
   </div>
 </div>
 
@@ -342,7 +705,7 @@
 <div class="modal" id="dialog-modal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true">
     <p class="dialog-message" id="dialog-message"></p>
-    <input class="switch-input boxed" id="dialog-input" hidden aria-label="Réponse">
+    <input class="input" id="dialog-input" hidden aria-label="Réponse">
     <div class="modal-actions">
       <button class="pill-btn" id="dialog-cancel">Annuler</button>
       <button class="pill-btn primary" id="dialog-ok">OK</button>
@@ -350,19 +713,138 @@
   </div>
 </div>
 
-<!-- QR code d'une note -->
-<div class="modal" id="qr-modal" hidden>
-  <div class="modal-card">
+<!-- Événement de l'agenda -->
+<div class="modal" id="event-modal" hidden>
+  <form class="modal-card form-card" id="event-form" role="dialog" aria-modal="true" aria-labelledby="event-modal-title" novalidate>
     <div class="modal-head">
-      <h2 class="section-title">QR code de la note</h2>
+      <h2 class="modal-title" id="event-modal-title">Nouvel événement</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <label class="field">Titre
+      <input class="input" id="ev-title" maxlength="140" placeholder="ex. Contrôle de physique" required>
+    </label>
+    <div class="field">
+      <span>Type</span>
+      <div class="kind-row" id="ev-kind" role="radiogroup" aria-label="Type d'événement"></div>
+    </div>
+    <div class="field-row">
+      <label class="field">Date
+        <input class="input" id="ev-date" type="date" required>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="ev-allday">
+        <span class="toggle-track" aria-hidden="true"></span>
+        Toute la journée
+      </label>
+    </div>
+    <div class="field-row" id="ev-times">
+      <label class="field">Début
+        <input class="input" id="ev-start" type="time" step="300">
+      </label>
+      <label class="field">Fin
+        <input class="input" id="ev-end" type="time" step="300">
+      </label>
+    </div>
+    <label class="field">Rappel
+      <select class="select" id="ev-reminder">
+        <option value="">Aucun</option>
+        <option value="0">Au début</option>
+        <option value="10">10 minutes avant</option>
+        <option value="30">30 minutes avant</option>
+        <option value="60">1 heure avant</option>
+        <option value="1440">La veille</option>
+      </select>
+    </label>
+    <p class="field-hint" id="ev-reminder-hint" hidden>Le rappel s'affiche si Carnet est ouvert (onglet ou application installée) au bon moment.</p>
+    <label class="field">Note liée
+      <select class="select" id="ev-note"></select>
+    </label>
+    <label class="field">Détails
+      <textarea class="textarea" id="ev-details" rows="2" maxlength="1000" placeholder="Salle, chapitres à revoir…"></textarea>
+    </label>
+    <p class="form-error" id="ev-error" hidden></p>
+    <div class="modal-actions spread">
+      <button class="pill-btn danger-text" type="button" id="ev-delete" hidden><i data-lucide="trash-2"></i>Supprimer</button>
+      <button class="pill-btn" type="button" id="ev-open-note" hidden><i data-lucide="file-text"></i>Ouvrir la note</button>
+      <span class="spacer"></span>
+      <button class="pill-btn" type="button" data-close>Annuler</button>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<!-- Tâche -->
+<div class="modal" id="task-modal" hidden>
+  <form class="modal-card form-card" id="task-edit-form" role="dialog" aria-modal="true" aria-labelledby="task-modal-title" novalidate>
+    <div class="modal-head">
+      <h2 class="modal-title" id="task-modal-title">Tâche</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <label class="field">Titre
+      <input class="input" id="tk-title" maxlength="200" required>
+    </label>
+    <label class="field">Échéance
+      <input class="input" id="tk-due" type="date">
+    </label>
+    <label class="field">Note liée
+      <select class="select" id="tk-note"></select>
+    </label>
+    <p class="form-error" id="tk-error" hidden></p>
+    <div class="modal-actions spread">
+      <button class="pill-btn danger-text" type="button" id="tk-delete" hidden><i data-lucide="trash-2"></i>Supprimer</button>
+      <span class="spacer"></span>
+      <button class="pill-btn" type="button" data-close>Annuler</button>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<!-- Carte de révision -->
+<div class="modal" id="card-modal" hidden>
+  <form class="modal-card form-card" id="card-form" role="dialog" aria-modal="true" aria-labelledby="card-modal-title" novalidate>
+    <div class="modal-head">
+      <h2 class="modal-title" id="card-modal-title">Carte de révision</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <label class="field">Question (recto)
+      <textarea class="textarea" id="cd-front" rows="2" maxlength="500" required></textarea>
+    </label>
+    <label class="field">Réponse (verso)
+      <textarea class="textarea" id="cd-back" rows="3" maxlength="1500" required></textarea>
+    </label>
+    <label class="field">Paquet
+      <input class="input" id="cd-deck" maxlength="60" list="deck-names" placeholder="ex. Maths – Dérivées">
+      <datalist id="deck-names"></datalist>
+    </label>
+    <p class="form-error" id="cd-error" hidden></p>
+    <div class="modal-actions spread">
+      <button class="pill-btn danger-text" type="button" id="cd-delete" hidden><i data-lucide="trash-2"></i>Supprimer</button>
+      <span class="spacer"></span>
+      <button class="pill-btn" type="button" data-close>Annuler</button>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<!-- Assistant IA appelé depuis une note -->
+<div class="modal" id="ai-modal" hidden>
+  <div class="modal-card wide" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+    <div class="modal-head">
+      <h2 class="modal-title" id="ai-modal-title">Assistant IA</h2>
       <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
     </div>
-    <p class="muted">Sur l'autre appareil, prends-le en photo : le texte de la note s'affiche. Copie-le, puis colle-le dans « Recevoir une note ». Le QR code contient le texte, pas les fichiers ni le schéma.</p>
-    <div class="qr-box" id="qr-box"></div>
-    <p class="warning" id="qr-warning" hidden></p>
-    <div class="modal-actions">
-      <button class="pill-btn" id="qr-scan"><i data-lucide="download"></i>Recevoir une note</button>
+    <div id="ai-modal-body" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- Installer l'application : instructions selon l'appareil -->
+<div class="modal" id="install-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="install-title">
+    <div class="modal-head">
+      <h2 class="modal-title" id="install-title">Installer Carnet</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
     </div>
+    <div id="install-steps"></div>
   </div>
 </div>
 
@@ -370,14 +852,14 @@
 <div class="modal" id="scan-modal" hidden>
   <div class="modal-card wide">
     <div class="modal-head">
-      <h2 class="section-title">Scanner un document</h2>
+      <h2 class="modal-title">Scanner un document</h2>
       <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
     </div>
 
     <div id="scan-camera">
       <p class="muted">Prends la feuille en photo bien à plat, ou choisis une photo déjà prise.</p>
       <div class="modal-actions">
-        <button class="pill-btn primary" id="scan-capture"><i data-lucide="camera"></i>Prendre en photo</button>
+        <button class="btn btn-primary" id="scan-capture"><i data-lucide="camera"></i><span>Prendre en photo</span></button>
         <button class="pill-btn" id="scan-photo-btn"><i data-lucide="image"></i>Choisir une photo</button>
       </div>
       <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
@@ -398,29 +880,8 @@
       </div>
       <div class="modal-actions">
         <button class="pill-btn" id="scan-retake"><i data-lucide="rotate-ccw"></i>Reprendre</button>
-        <button class="pill-btn primary" id="scan-apply"><i data-lucide="check"></i>Numériser</button>
+        <button class="btn btn-primary" id="scan-apply"><i data-lucide="check"></i><span>Numériser</span></button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- Recevoir une note : photo d'un QR code, ou texte copié -->
-<div class="modal" id="qr-scan-modal" hidden>
-  <div class="modal-card">
-    <div class="modal-head">
-      <h2 class="section-title">Recevoir une note</h2>
-      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
-    </div>
-    <p class="muted">Prends en photo le QR code d'une note, ou colle le texte qu'il contient.</p>
-    <div class="modal-actions">
-      <button class="pill-btn primary" id="qr-photo-btn"><i data-lucide="camera"></i>Photo du QR code</button>
-    </div>
-    <input type="file" id="qr-photo-input" accept="image/*" capture="environment" hidden>
-    <label class="field">Texte du QR code
-      <textarea id="qr-paste" rows="3" placeholder="carnet:…"></textarea>
-    </label>
-    <div class="modal-actions">
-      <button class="pill-btn primary" id="qr-paste-btn">Ajouter la note</button>
     </div>
   </div>
 </div>
@@ -429,7 +890,7 @@
 <div class="modal" id="preview-modal" hidden>
   <div class="modal-card wide">
     <div class="modal-head">
-      <h2 class="section-title" id="preview-title"></h2>
+      <h2 class="modal-title" id="preview-title"></h2>
       <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
     </div>
     <img id="preview-img" class="preview-img" alt="">
@@ -449,6 +910,13 @@
 <script src="files.js"></script>
 <script src="schema.js"></script>
 <script src="graph.js"></script>
+<script src="agenda.js"></script>
+<script src="tasks.js"></script>
+<script src="review.js"></script>
+<script src="home.js"></script>
+<script src="ai.js"></script>
 <script src="qr.js"></script>
+<script src="pwa.js"></script>
+<script src="start.js"></script>
 </body>
 </html>

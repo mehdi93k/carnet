@@ -107,14 +107,18 @@ function renderGraph() {
     ctx.stroke();
   });
 
-  ctx.font = '13px "Instrument Sans", system-ui, sans-serif';
+  ctx.font = '500 13px "Geist", system-ui, sans-serif';
   ctx.textBaseline = 'middle';
   nodes.forEach((n) => {
     const r = 5 + Math.min(9, n.degree * 2);
+    // Un halo autour des notes très reliées
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = 6 + n.degree * 3;
     ctx.beginPath();
     ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
     ctx.fillStyle = accent;
     ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.fillStyle = ink;
     ctx.fillText(n.title, n.x + r + 6, n.y);
   });

@@ -8,7 +8,7 @@
 // donc vider ce cache ne fait rien perdre.
 // Changer VERSION à chaque mise en ligne efface les anciennes copies.
 
-const VERSION = 'carnet-2026-10-27-a';
+const VERSION = 'carnet-2026-10-27-b';
 const SHELL = [
   './', 'index.html', 'style.css', 'manifest.webmanifest',
   'app.js', 'voice.js', 'files.js', 'schema.js', 'graph.js', 'agenda.js', 'tasks.js',
@@ -44,7 +44,9 @@ self.addEventListener('activate', (event) => {
 // Réseau d'abord, avec un délai maximum ; la copie sert si le réseau ne répond pas
 async function networkFirst(request) {
   const cache = await caches.open(VERSION);
-  const network = fetch(request).then((response) => {
+  // « no-cache » : on redemande toujours au serveur si le fichier a changé (sinon le navigateur
+  // peut garder une ancienne version 10 minutes et mélanger ancien et nouveau code)
+  const network = fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' }).then((response) => {
     if (response.ok && response.type === 'basic') cache.put(request, response.clone());
     return response;
   });

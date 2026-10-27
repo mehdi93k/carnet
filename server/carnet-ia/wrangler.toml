@@ -1,0 +1,14 @@
+# Configuration du serveur IA de Carnet sur Cloudflare Workers
+name = "carnet-ia"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+# Les sites autorisés à utiliser ce serveur (séparés par des virgules)
+ALLOWED_ORIGINS = "https://mehdi93k.github.io"
+# Le modèle de Claude. claude-haiku-5-5 coûte environ 40 fois moins cher (réponses un peu moins fines).
+MODEL = "claude-opus-5-5"
+
+# La clé API n'est JAMAIS écrite ici : elle s'ajoute avec
+#   npx wrangler secret put ANTHROPIC_API_KEY

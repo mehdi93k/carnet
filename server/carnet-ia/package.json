@@ -1,0 +1,10 @@
+{
+  "name": "carnet-ia",
+  "private": true,
+  "type": "module",
+  "description": "Serveur IA de Carnet : garde la clé API secrète et interroge Claude.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  }
+}

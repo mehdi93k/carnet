@@ -412,6 +412,8 @@ function renderCrumbs() {
   } else {
     html = `<span class="crumb current">${filterTag ? `#${esc(filterTag)}` : 'Accueil'}</span>`;
   }
+  // Liste filtrée par tag (sans note ouverte) : le chemin indique le tag
+  if (filterTag && !note && !showGraph) html = `<span class="crumb current">#${esc(filterTag)}</span>`;
   $('crumbs').innerHTML = html;
 
   // Les actions de note n'apparaissent que si une note est ouverte
@@ -1188,6 +1190,7 @@ function openDrawer() { $('app').classList.add('menu-open'); }
 function closeDrawer() { $('app').classList.remove('menu-open'); }
 
 $('sidebar-toggle').addEventListener('click', toggleSidebar);
+$('sidebar-open').addEventListener('click', toggleSidebar);
 $('inspector-toggle').addEventListener('click', toggleInspector);
 $('inspector-close').addEventListener('click', toggleInspector);
 $$('[data-open-menu]').forEach((button) => button.addEventListener('click', openDrawer));

@@ -114,8 +114,13 @@ kbd {
   grid-template-columns: var(--sb-w) minmax(0, 1fr);
   height: 100%;
 }
-.app.sb-off { grid-template-columns: 0 minmax(0, 1fr); }
+/* Menu replié : il ne reste qu'une colonne (le menu caché ne prend plus de case dans la grille) */
+.app.sb-off { grid-template-columns: minmax(0, 1fr); }
 .app.sb-off .sidebar { display: none; }
+
+/* Bouton pour rouvrir le menu, visible seulement quand il est replié */
+.topbar .sb-open-btn { display: none; }
+.app.sb-off .topbar .sb-open-btn { display: grid; }
 
 /* ===== Barre latérale ===== */
 .sidebar {
@@ -1353,6 +1358,7 @@ kbd {
 
   .sheet, .sheet.ins-on.has-note { grid-template-columns: 1fr; }
   .menu-btn { display: grid; }
+  .app.sb-off .topbar .sb-open-btn { display: none; }
 
   /* Une seule colonne : la liste, ou l'éditeur */
   .notes, .editor { display: none; }

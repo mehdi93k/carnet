@@ -117,8 +117,9 @@ $('board').addEventListener('pointerdown', (event) => {
   const card = note.schema.cards.find((c) => c.id === box.dataset.card);
   if (!card) return;
 
-  // Mode « Relier » : on choisit deux cartes
-  if (linkMode && !event.target.closest('.card-text')) {
+  // Mode « Relier » : un clic n'importe où sur la carte la choisit (sans ouvrir son texte)
+  if (linkMode) {
+    event.preventDefault();
     chooseForLink(note, card);
     return;
   }

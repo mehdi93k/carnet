@@ -49,6 +49,11 @@ function renderGraph() {
     });
   });
 
+  // Distance idéale entre deux notes reliées : proportionnelle à la taille du graphe,
+  // pour que quelques notes ne restent pas tassées au centre d'un grand écran
+  const ideal = Math.max(110, Math.min(width, height) * 0.24);
+  const repulse = ideal * ideal * 0.6;
+
   // Simulation : 300 étapes suffisent pour une cinquantaine de notes
   for (let step = 0; step < 300; step++) {
     // Répulsion entre toutes les paires de notes
@@ -59,7 +64,7 @@ function renderGraph() {
         const dy = a.y - b.y;
         const d2 = dx * dx + dy * dy + 0.01;
         const d = Math.sqrt(d2);
-        const force = 900 / d2;
+        const force = repulse / d2;
         a.vx += (dx / d) * force;
         a.vy += (dy / d) * force;
       }
@@ -69,7 +74,7 @@ function renderGraph() {
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const d = Math.sqrt(dx * dx + dy * dy) + 0.01;
-      const force = (d - 110) * 0.02;
+      const force = (d - ideal) * 0.02;
       a.vx += (dx / d) * force;
       a.vy += (dy / d) * force;
       b.vx -= (dx / d) * force;
@@ -77,8 +82,8 @@ function renderGraph() {
     }
     // Rappel vers le centre, puis déplacement
     for (const n of nodes) {
-      n.vx += (width / 2 - n.x) * 0.004;
-      n.vy += (height / 2 - n.y) * 0.004;
+      n.vx += (width / 2 - n.x) * 0.0025;
+      n.vy += (height / 2 - n.y) * 0.0025;
       n.x = Math.min(width - 24, Math.max(24, n.x + n.vx * 0.5));
       n.y = Math.min(height - 24, Math.max(24, n.y + n.vy * 0.5));
       n.vx *= 0.6;

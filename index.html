@@ -3,90 +3,140 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Carnet : notes reliées, schémas, dictée vocale, fichiers scannés et QR codes.">
+  <meta name="description" content="Carnet : ton espace de notes reliées, schémas, dictée et fichiers.">
+  <meta name="theme-color" content="#0e0f14">
   <title>Carnet</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Sans:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app" id="app">
 
-  <!-- Menu -->
-  <aside class="sidebar" id="sidebar">
-    <div class="brand">
-      <span class="mark" aria-hidden="true">C</span>
-      <span class="brand-name">Carnet</span>
-      <button class="icon-btn" id="search-btn" title="Aller à une note (Ctrl+O)" aria-label="Aller à une note">
-        <i data-lucide="search"></i>
+  <!-- ===== Barre latérale ===== -->
+  <aside class="sidebar" id="sidebar" aria-label="Navigation">
+    <div class="sb-head">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M16.8 7.6a6.2 6.2 0 1 0 0 8.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="17.6" cy="12" r="2" fill="currentColor"/></svg>
+        </span>
+        <span class="brand-name">Carnet</span>
+      </div>
+      <button class="icon-btn" id="sidebar-toggle" title="Replier le menu (Ctrl+\)" aria-label="Replier le menu">
+        <i data-lucide="panel-left-close"></i>
+      </button>
+    </div>
+
+    <div class="sb-quick">
+      <button class="btn btn-wide" id="sb-new-note"><i data-lucide="square-pen"></i><span>Nouvelle note</span><kbd>Alt N</kbd></button>
+      <button class="search-field" id="search-btn" aria-label="Rechercher une note (Ctrl+O)">
+        <i data-lucide="search"></i><span>Rechercher</span><kbd>Ctrl O</kbd>
       </button>
     </div>
 
     <nav class="nav" aria-label="Vues">
-      <button class="nav-item" data-view="home"><i data-lucide="house"></i>Accueil</button>
+      <button class="nav-item" data-view="home"><i data-lucide="layout-grid"></i>Accueil</button>
       <button class="nav-item" data-view="graph"><i data-lucide="network"></i>Graphe</button>
     </nav>
 
-    <div class="side-section">
-      <div class="sidebar-head">
-        <span class="label">Carnets</span>
-        <button class="icon-btn small" id="add-cat" title="Nouvelle catégorie" aria-label="Nouvelle catégorie">
-          <i data-lucide="plus"></i>
-        </button>
-      </div>
-      <nav class="tree-wrap" aria-label="Catégories et sous-catégories">
-        <ul class="tree" id="tree"></ul>
-      </nav>
+    <div class="sb-scroll">
+      <section class="sb-section">
+        <h2 class="sb-title">Récentes</h2>
+        <ul class="side-list" id="side-recent"></ul>
+      </section>
+
+      <section class="sb-section">
+        <h2 class="sb-title">Favoris</h2>
+        <ul class="side-list" id="fav-list"></ul>
+      </section>
+
+      <section class="sb-section">
+        <h2 class="sb-title">Épinglées</h2>
+        <ul class="side-list" id="pin-list"></ul>
+      </section>
+
+      <section class="sb-section">
+        <div class="sb-title-row">
+          <h2 class="sb-title">Dossiers</h2>
+          <button class="icon-btn small" id="add-cat" title="Nouveau dossier" aria-label="Nouveau dossier"><i data-lucide="folder-plus"></i></button>
+        </div>
+        <nav aria-label="Dossiers et sous-dossiers"><ul class="tree" id="tree"></ul></nav>
+      </section>
+
+      <section class="sb-section">
+        <h2 class="sb-title">Tags</h2>
+        <ul class="tags" id="tags"></ul>
+      </section>
     </div>
 
-    <div class="side-section">
-      <div class="sidebar-head"><span class="label">Tags</span></div>
-      <ul class="tags" id="tags"></ul>
-    </div>
-
-    <div class="sidebar-foot">
-      <p class="sync-status"><span class="dot-teal" aria-hidden="true"></span>Enregistré sur cet appareil</p>
-      <div class="accents" id="accents" role="group" aria-label="Couleur d'accent"></div>
+    <div class="sb-foot">
+      <button class="nav-item" id="settings-btn"><i data-lucide="settings-2"></i>Paramètres</button>
+      <p class="sync-status"><span class="dot-accent" aria-hidden="true"></span>Enregistré sur cet appareil</p>
     </div>
   </aside>
 
-  <!-- La feuille : liste des notes et éditeur -->
-  <div class="sheet">
+  <!-- ===== Espace de travail ===== -->
+  <div class="sheet" id="sheet">
 
-    <section class="notes" id="notes-panel">
+    <!-- Liste des notes du dossier ouvert -->
+    <section class="notes" id="notes-panel" aria-label="Liste des notes">
       <header class="notes-head">
-        <button class="text-btn menu-btn" data-open-menu>Menu</button>
+        <button class="icon-btn menu-btn" data-open-menu aria-label="Ouvrir le menu"><i data-lucide="menu"></i></button>
         <div class="notes-title">
           <h2 class="sub-title" id="sub-title">Mes notes</h2>
           <p class="muted" id="sub-count"></p>
         </div>
-        <button class="btn" id="new-note"><i data-lucide="square-pen"></i>Nouvelle note</button>
+        <button class="icon-btn" id="new-note" title="Nouvelle note (Alt+N)" aria-label="Nouvelle note"><i data-lucide="square-pen"></i></button>
       </header>
       <ul class="note-list" id="note-list"></ul>
     </section>
 
+    <!-- Zone centrale -->
     <section class="editor" id="editor">
-
-      <!-- Accueil : notes récentes et carnets -->
-      <div class="home" id="home">
-        <div class="home-top">
-          <button class="text-btn menu-btn" data-open-menu>Menu</button>
-          <svg class="home-art" viewBox="0 0 120 90" aria-hidden="true">
-            <rect x="26" y="14" width="64" height="58" rx="6" fill="var(--paper-2)" transform="rotate(-8 58 43)"/>
-            <rect x="30" y="16" width="64" height="58" rx="6" fill="var(--paper-3)" transform="rotate(-2 62 45)"/>
-            <rect x="34" y="18" width="64" height="58" rx="6" fill="var(--paper)" stroke="var(--border)"/>
-            <path d="M44 34h44M44 44h36M44 54h40M44 64h24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" opacity=".7"/>
-          </svg>
+      <header class="topbar">
+        <button class="icon-btn back-btn" data-back aria-label="Retour à la liste"><i data-lucide="arrow-left"></i></button>
+        <button class="icon-btn menu-btn" data-open-menu aria-label="Ouvrir le menu"><i data-lucide="menu"></i></button>
+        <nav class="crumbs" id="crumbs" aria-label="Emplacement"></nav>
+        <span class="save-state" id="save-state" aria-live="polite"><span class="save-dot"></span><span id="save-text">Enregistré</span></span>
+        <div class="topbar-actions" id="note-actions">
+          <button class="icon-btn" id="fav-btn" title="Favori" aria-label="Ajouter aux favoris" aria-pressed="false"><i data-lucide="star"></i></button>
+          <button class="icon-btn" id="pin-btn" title="Épingler" aria-label="Épingler la note" aria-pressed="false"><i data-lucide="pin"></i></button>
+          <button class="icon-btn" id="qr-btn" title="QR code de la note" aria-label="QR code de la note"><i data-lucide="qr-code"></i></button>
+          <button class="icon-btn" id="more-btn" title="Actions" aria-label="Actions sur la note" aria-haspopup="menu"><i data-lucide="more-horizontal"></i></button>
         </div>
-        <h1 class="home-title">Carnet</h1>
-        <h2 class="section-title">Reprendre là où tu en étais</h2>
+        <button class="icon-btn" id="inspector-toggle" title="Détails (Ctrl+.)" aria-label="Afficher les détails"><i data-lucide="panel-right"></i></button>
+      </header>
+
+      <!-- Accueil -->
+      <div class="home" id="home">
+        <div class="home-hero">
+          <svg class="home-art" viewBox="0 0 160 120" aria-hidden="true">
+            <g fill="none" stroke="var(--accent)" stroke-width="1.4">
+              <line x1="40" y1="44" x2="84" y2="30" opacity=".5"/>
+              <line x1="84" y1="30" x2="124" y2="56" opacity=".5"/>
+              <line x1="40" y1="44" x2="70" y2="86" opacity=".5"/>
+              <line x1="70" y1="86" x2="124" y2="56" opacity=".35"/>
+              <line x1="70" y1="86" x2="112" y2="98" opacity=".35"/>
+            </g>
+            <circle cx="40" cy="44" r="6" fill="var(--accent)"/>
+            <circle cx="84" cy="30" r="4" fill="var(--text-2)"/>
+            <circle cx="124" cy="56" r="5" fill="var(--text-2)"/>
+            <circle cx="70" cy="86" r="7" fill="var(--accent)" opacity=".75"/>
+            <circle cx="112" cy="98" r="3.5" fill="var(--text-3)"/>
+          </svg>
+          <div>
+            <h1 class="home-title">Ton second cerveau</h1>
+            <p class="home-sub" id="home-sub"></p>
+          </div>
+        </div>
+        <h2 class="section-title">Reprendre</h2>
         <ul class="recent" id="recent"></ul>
-        <h2 class="section-title">Tes carnets</h2>
+        <h2 class="section-title">Dossiers</h2>
         <ul class="shelf" id="shelf"></ul>
       </div>
 
-      <!-- Graphe des notes reliées -->
+      <!-- Graphe -->
       <div class="graph-view" id="graph-view" hidden>
         <div class="graph-head">
           <h2 class="section-title">Graphe des notes</h2>
@@ -97,88 +147,90 @@
 
       <!-- Une note ouverte -->
       <div class="editor-inner" id="editor-inner" hidden>
-        <div class="editor-top">
-          <button class="text-btn back-btn" data-back>← Notes</button>
-          <nav class="tabs" aria-label="Volets de la note">
-            <button class="tab" data-tab="text"><i data-lucide="pen-line"></i>Texte</button>
-            <button class="tab" data-tab="schema"><i data-lucide="workflow"></i>Schéma</button>
-            <button class="tab" data-tab="files"><i data-lucide="paperclip"></i>Fichiers</button>
-            <button class="tab" data-tab="links"><i data-lucide="link-2"></i>Liens</button>
-          </nav>
-          <button class="icon-btn" id="qr-btn" title="QR code de la note" aria-label="QR code de la note"><i data-lucide="qr-code"></i></button>
-          <button class="icon-btn danger" id="delete-note" title="Supprimer la note" aria-label="Supprimer la note"><i data-lucide="trash-2"></i></button>
-        </div>
+        <nav class="tabs" aria-label="Volets de la note">
+          <button class="tab" data-tab="text"><i data-lucide="pen-line"></i>Texte</button>
+          <button class="tab" data-tab="schema"><i data-lucide="workflow"></i>Schéma</button>
+          <button class="tab" data-tab="files"><i data-lucide="paperclip"></i>Fichiers</button>
+        </nav>
 
         <!-- Volet Texte -->
         <div class="pane" id="pane-text" data-pane="text">
           <input class="title-input" id="note-title" placeholder="Sans titre" aria-label="Titre de la note">
-          <p class="meta" id="meta"></p>
-          <div class="cover-row" id="cover-row" aria-label="Couleur de la note"></div>
+          <div class="meta-row">
+            <p class="meta" id="meta"></p>
+            <div class="cover-row" id="cover-row" aria-label="Couleur de la note"></div>
+          </div>
 
           <div class="toolbar" id="toolbar">
-            <select id="font-select" title="Police" aria-label="Police">
-              <option value="'Instrument Sans', Inter, system-ui, sans-serif">Instrument Sans</option>
-              <option value="'Instrument Serif', Georgia, serif">Instrument Serif</option>
-              <option value="Georgia, serif">Georgia</option>
-              <option value="Arial, sans-serif">Arial</option>
-              <option value="Verdana, sans-serif">Verdana</option>
-              <option value="'Courier New', monospace">Courier New</option>
-              <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
-              <option value="Segoe UI, system-ui, sans-serif">Segoe UI</option>
-            </select>
-            <select id="size-select" title="Taille" aria-label="Taille">
-              <option value="12">12</option>
-              <option value="14">14</option>
-              <option value="16" selected>16</option>
-              <option value="20">20</option>
-              <option value="24">24</option>
-              <option value="30">30</option>
-            </select>
             <span class="tool-group">
-              <button data-cmd="bold" title="Gras" aria-label="Gras"><i data-lucide="bold"></i></button>
-              <button data-cmd="italic" title="Italique" aria-label="Italique"><i data-lucide="italic"></i></button>
-              <button data-cmd="underline" title="Souligné" aria-label="Souligné"><i data-lucide="underline"></i></button>
+              <select id="heading-select" title="Style de paragraphe" aria-label="Style de paragraphe">
+                <option value="p">Texte</option>
+                <option value="h1">Titre 1</option>
+                <option value="h2">Titre 2</option>
+                <option value="h3">Titre 3</option>
+              </select>
+              <select id="font-select" title="Police" aria-label="Police">
+                <option value="">Lecture</option>
+                <option value="'Newsreader', Georgia, serif">Newsreader</option>
+                <option value="'Inter', system-ui, sans-serif">Inter</option>
+                <option value="'Instrument Sans', Inter, system-ui, sans-serif">Instrument Sans</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+                <option value="'JetBrains Mono', monospace">JetBrains Mono</option>
+                <option value="Segoe UI, system-ui, sans-serif">Segoe UI</option>
+              </select>
+              <select id="size-select" title="Taille" aria-label="Taille">
+                <option value="14">14</option>
+                <option value="16">16</option>
+                <option value="18" selected>18</option>
+                <option value="22">22</option>
+                <option value="28">28</option>
+              </select>
             </span>
+            <span class="tool-sep"></span>
             <span class="tool-group">
+              <button data-cmd="bold" title="Gras (Ctrl+B)" aria-label="Gras"><i data-lucide="bold"></i></button>
+              <button data-cmd="italic" title="Italique (Ctrl+I)" aria-label="Italique"><i data-lucide="italic"></i></button>
+              <button data-cmd="underline" title="Souligné (Ctrl+U)" aria-label="Souligné"><i data-lucide="underline"></i></button>
               <label class="swatch" title="Couleur du texte">
-                <input type="color" id="color-input" value="#1f201d" aria-label="Couleur du texte">
+                <input type="color" id="color-input" value="#a28bf0" aria-label="Couleur du texte">
                 <span class="swatch-letter">A</span>
               </label>
               <label class="swatch" title="Surlignage">
-                <input type="color" id="highlight-input" value="#f3e7a6" aria-label="Surlignage">
+                <input type="color" id="highlight-input" value="#5b4a1e" aria-label="Surlignage">
                 <span class="swatch-letter highlight">A</span>
               </label>
             </span>
-            <select id="heading-select" title="Style de paragraphe" aria-label="Style de paragraphe">
-              <option value="p">Texte normal</option>
-              <option value="h1">Titre 1</option>
-              <option value="h2">Titre 2</option>
-              <option value="h3">Titre 3</option>
-            </select>
+            <span class="tool-sep"></span>
             <span class="tool-group">
-              <button data-cmd="insertUnorderedList" title="Liste à puces" aria-label="Liste à puces"><i data-lucide="list"></i></button>
-              <button data-cmd="insertOrderedList" title="Liste numérotée" aria-label="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+              <button data-cmd="insertUnorderedList" title="Liste à puces (- espace)" aria-label="Liste à puces"><i data-lucide="list"></i></button>
+              <button data-cmd="insertOrderedList" title="Liste numérotée (1. espace)" aria-label="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+              <button data-block="blockquote" title="Citation (> espace)" aria-label="Citation"><i data-lucide="quote"></i></button>
+              <button data-block="pre" title="Bloc de code" aria-label="Bloc de code"><i data-lucide="code"></i></button>
             </span>
+            <span class="tool-sep"></span>
             <span class="tool-group">
               <button data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche"><i data-lucide="align-left"></i></button>
               <button data-cmd="justifyCenter" title="Centrer" aria-label="Centrer"><i data-lucide="align-center"></i></button>
-              <button data-cmd="justifyRight" title="Aligner à droite" aria-label="Aligner à droite"><i data-lucide="align-right"></i></button>
+              <button data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><i data-lucide="eraser"></i></button>
             </span>
-            <button data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><i data-lucide="eraser"></i></button>
-            <button class="mic-btn" id="dictate-btn" aria-pressed="false" title="Dicter (reconnaissance vocale)"><i data-lucide="mic"></i>Dicter</button>
+            <button class="mic-btn" id="dictate-btn" aria-pressed="false" title="Dicter (reconnaissance vocale)"><i data-lucide="mic"></i><span>Dicter</span></button>
           </div>
           <span class="dictation-status" id="dictation-status" hidden>Je t’écoute</span>
 
           <div class="note-body" id="note-body" contenteditable="true" spellcheck="true"
-               data-placeholder="Commence à écrire, ou appuie sur Dicter. Tape [[Titre]] pour relier une autre note."></div>
+               data-placeholder="Écris, ou tape # pour un titre, - pour une liste, > pour une citation. [[Titre]] relie une autre note."></div>
         </div>
 
         <!-- Volet Schéma -->
         <div class="pane" id="pane-schema" data-pane="schema" hidden>
           <div class="toolbar">
-            <button class="pill-btn" id="schema-add"><i data-lucide="plus"></i>Carte</button>
-            <button class="pill-btn" id="schema-link" aria-pressed="false"><i data-lucide="git-commit-horizontal"></i>Relier</button>
-            <button class="pill-btn" id="schema-delete"><i data-lucide="trash-2"></i>Supprimer</button>
+            <span class="tool-group">
+              <button class="pill-btn" id="schema-add"><i data-lucide="plus"></i>Carte</button>
+              <button class="pill-btn" id="schema-link" aria-pressed="false"><i data-lucide="git-commit-horizontal"></i>Relier</button>
+              <button class="pill-btn" id="schema-delete"><i data-lucide="trash-2"></i>Supprimer</button>
+            </span>
             <span class="muted hint" id="schema-hint"></span>
           </div>
           <div class="board" id="board"></div>
@@ -197,32 +249,99 @@
           </div>
           <ul class="file-list" id="file-list"></ul>
         </div>
-
-        <!-- Volet Liens -->
-        <div class="pane" id="pane-links" data-pane="links" hidden>
-          <h3 class="section-title">Liens sortants</h3>
-          <ul class="link-list" id="links-out"></ul>
-          <h3 class="section-title">Liens entrants</h3>
-          <ul class="link-list" id="links-in"></ul>
-        </div>
       </div>
     </section>
+
+    <!-- Panneau de détails -->
+    <aside class="inspector" id="inspector" aria-label="Détails de la note">
+      <header class="insp-head">
+        <h2 class="sb-title">Détails</h2>
+        <button class="icon-btn small" id="inspector-close" aria-label="Fermer les détails"><i data-lucide="x"></i></button>
+      </header>
+      <div class="insp-body" id="insp-body">
+        <section class="insp-sec">
+          <h3 class="insp-title">Propriétés</h3>
+          <dl class="props" id="props"></dl>
+        </section>
+        <section class="insp-sec">
+          <h3 class="insp-title">Tags</h3>
+          <ul class="chips" id="note-tags"></ul>
+        </section>
+        <section class="insp-sec">
+          <h3 class="insp-title">Liens sortants</h3>
+          <ul class="link-list" id="links-out"></ul>
+        </section>
+        <section class="insp-sec">
+          <h3 class="insp-title">Backlinks</h3>
+          <ul class="link-list" id="links-in"></ul>
+        </section>
+      </div>
+      <p class="insp-empty" id="insp-empty">Ouvre une note pour voir ses détails.</p>
+    </aside>
   </div>
 </div>
+
+<!-- Menu contextuel (clic droit, ou bouton « … ») -->
+<div class="ctx-menu" id="ctx-menu" role="menu" hidden></div>
 
 <!-- Aller à une note (Ctrl+O) -->
 <div class="modal" id="switcher-modal" hidden>
-  <div class="modal-card switcher" role="dialog" aria-modal="true" aria-label="Aller à une note">
-    <input class="switch-input" id="switch-input" placeholder="Nom d'une note, ou un mot de son contenu…" aria-label="Rechercher une note">
+  <div class="modal-card switcher" role="dialog" aria-modal="true" aria-label="Rechercher une note">
+    <div class="switch-field">
+      <i data-lucide="search"></i>
+      <input class="switch-input" id="switch-input" placeholder="Titre, mot du contenu ou #tag…" aria-label="Rechercher une note">
+      <kbd>Échap</kbd>
+    </div>
     <ul class="switch-list" id="switch-list"></ul>
+    <p class="switch-hint"><kbd>↑</kbd><kbd>↓</kbd> naviguer <kbd>Entrée</kbd> ouvrir</p>
   </div>
 </div>
 
-<!-- Question à l'utilisateur : remplace prompt() et confirm(), qui ne s'affichent pas ici -->
+<!-- Paramètres -->
+<div class="modal" id="settings-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Paramètres">
+    <div class="modal-head">
+      <h2 class="section-title">Paramètres</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <div class="setting">
+      <span class="setting-label">Couleur d'accent</span>
+      <div class="accents" id="accents" role="group" aria-label="Couleur d'accent"></div>
+    </div>
+    <label class="setting">
+      <span class="setting-label">Police de lecture</span>
+      <select class="select" id="read-font">
+        <option value="serif">Newsreader (serif, pour lire longtemps)</option>
+        <option value="sans">Inter (sans serif)</option>
+      </select>
+    </label>
+    <label class="setting">
+      <span class="setting-label">Taille du texte</span>
+      <select class="select" id="read-size">
+        <option value="16">Petite</option>
+        <option value="18">Normale</option>
+        <option value="20">Grande</option>
+      </select>
+    </label>
+    <div class="setting">
+      <span class="setting-label">Raccourcis</span>
+      <dl class="shortcuts">
+        <dt><kbd>Alt N</kbd></dt><dd>Nouvelle note</dd>
+        <dt><kbd>Ctrl O</kbd> <kbd>Ctrl K</kbd></dt><dd>Rechercher une note</dd>
+        <dt><kbd>#</kbd> <kbd>-</kbd> <kbd>&gt;</kbd></dt><dd>Titre, liste, citation (en début de ligne, puis espace)</dd>
+        <dt><kbd>Ctrl \</kbd></dt><dd>Replier le menu</dd>
+        <dt><kbd>Ctrl .</kbd></dt><dd>Afficher les détails</dd>
+        <dt><kbd>Échap</kbd></dt><dd>Fermer une fenêtre</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<!-- Question à l'utilisateur : remplace prompt() et confirm() -->
 <div class="modal" id="dialog-modal" hidden>
   <div class="modal-card" role="dialog" aria-modal="true">
     <p class="dialog-message" id="dialog-message"></p>
-    <input class="switch-input" id="dialog-input" hidden aria-label="Réponse">
+    <input class="switch-input boxed" id="dialog-input" hidden aria-label="Réponse">
     <div class="modal-actions">
       <button class="pill-btn" id="dialog-cancel">Annuler</button>
       <button class="pill-btn primary" id="dialog-ok">OK</button>

@@ -1,0 +1,3484 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Carnet : notes reliées, schémas, dictée vocale, fichiers scannés et QR codes.">
+  <title>Carnet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+/* ===== Carnet : style =====
+   Un menu sur fond chaud, une feuille de papier, des titres en écriture serif,
+   une couleur d'accent que tu choisis (en bas du menu).
+   Les couleurs sont des variables : change-les ici pour changer l'ambiance. */
+
+:root {
+  --chrome: #f1f1ee;        /* menu et pourtour : une pierre très claire */
+  --paper: #fbfbfb;         /* la feuille */
+  --paper-2: #e6e6e1;       /* papiers derrière l'illustration */
+  --paper-3: #efefeb;
+  --surface: #f5f5f2;       /* liste des notes, barres d'outils */
+  --raised: #ffffff;        /* note sélectionnée, cartes */
+  --hover: #ebebe7;
+  --selected: #e1e1dc;
+  --border: #e2e2dd;
+  --control: #cfcfc9;
+  --text: #1c1d1a;
+  --muted: #696b64;
+  --accent: #1b6e66;        /* choisi par toi (JS) */
+  --danger: #b42318;
+  --font-ui: "Instrument Sans", Inter, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --graph-bg: #1d1f1c;      /* fond du graphe : une « table de travail » sombre */
+  --graph-ink: #ecebe6;
+  --graph-line: rgba(236, 235, 230, 0.18);
+  --float-shadow: 0 18px 50px rgba(40, 30, 10, 0.22); /* seulement pour ce qui flotte */
+}
+
+/* Mode sombre : suit le réglage de l'appareil */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chrome: #141411;
+    --paper: #1b1b17;
+    --paper-2: #2a2a24;
+    --paper-3: #23231e;
+    --surface: #1f1f1b;
+    --raised: #2a2a25;
+    --hover: #272721;
+    --selected: #33332b;
+    --border: #2d2d27;
+    --control: #4a4a41;
+    --text: #ecebe6;
+    --muted: #a09d92;
+    --danger: #e5847a;
+    --graph-bg: #0f100e;
+    --float-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--chrome);
+  color: var(--text);
+  font-family: var(--font-ui);
+  overflow: hidden;
+}
+
+button, select, input { font-family: inherit; color: inherit; }
+
+button:focus-visible, select:focus-visible, input:focus-visible,
+[contenteditable]:focus-visible, .handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Icônes Lucide : même taille et même trait partout */
+.lucide { width: 16px; height: 16px; stroke-width: 1.8; flex: none; }
+
+.count, time, .muted { font-variant-numeric: tabular-nums; }
+
+/* Animation d'entrée douce quand une vue apparaît */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.home:not([hidden]), .editor-inner:not([hidden]), .graph-view:not([hidden]) {
+  animation: rise 0.28s ease both;
+}
+
+/* ===== Mise en page : menu + feuille ===== */
+.app {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ===== Menu ===== */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 20px 14px 14px 18px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.brand-name {
+  flex: 1;
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+.icon-btn.small { width: 26px; height: 26px; }
+.icon-btn.danger:hover { color: var(--danger); }
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.nav-item:hover { background: var(--hover); }
+
+.side-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.sidebar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px 0 10px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+/* Arbre des catégories : défile si la liste est longue */
+.tree-wrap {
+  max-height: 42vh;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+
+.tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.tree-row:hover { background: var(--hover); }
+.sub-row.active { background: var(--selected); }
+
+.caret {
+  width: 10px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-name { font-weight: 600; }
+.sub-row .name { padding-left: 17px; color: var(--muted); }
+.sub-row.active .name { color: var(--text); font-weight: 500; }
+
+.count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tools { display: none; gap: 2px; }
+.tree-row:hover .tools { display: flex; }
+.tree-row:hover .count { display: none; }
+
+.tools button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tools button:hover { color: var(--text); background: var(--surface); }
+
+.subs {
+  list-style: none;
+  margin: 2px 0 0 14px;
+  padding: 0 0 0 8px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cat.collapsed .subs { display: none; }
+
+/* Tags */
+.tags {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 4px;
+  max-height: 16vh;
+  overflow-y: auto;
+}
+
+.tag-btn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--selected);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.tag-btn.active { background: var(--accent); color: #fff; }
+.tag-btn.active .count { color: #fff; }
+
+.hint-line {
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dot-teal {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Couleurs d'accent */
+.accents { display: flex; gap: 8px; }
+.accent-dot {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--chrome);
+}
+.accent-dot.active { box-shadow: 0 0 0 2px var(--chrome), 0 0 0 4px var(--text); }
+
+/* ===== La feuille ===== */
+.sheet {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  min-height: 0;
+  margin: 0 8px 8px 0;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ===== Liste des notes ===== */
+.notes {
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.notes-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 26px 20px 16px;
+}
+
+.notes-title { flex: 1; min-width: 0; }
+
+.sub-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.muted {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.section-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--paper);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.btn:hover { opacity: 0.88; }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: var(--raised);
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.pill-btn:hover { background: var(--hover); }
+.pill-btn:active { transform: scale(0.97); }
+.pill-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pill-btn.primary:hover { background: var(--accent); filter: brightness(1.08); }
+.pill-btn.small { height: 26px; padding: 0 9px; font-size: 12px; }
+.pill-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.text-btn {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.text-btn:hover { background: var(--hover); }
+.back-btn { display: none; }
+.menu-btn { display: none; }
+
+.note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Une carte de note : la couleur de couverture sert de liseré à gauche */
+.note-card {
+  padding: 12px 14px 12px 13px;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: inset 3px 0 0 var(--cover, transparent);
+  transition: background 0.15s ease;
+}
+.note-card:hover { background: var(--hover); }
+.note-card.active { background: var(--raised); }
+
+.note-card h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-card p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.place {
+  color: var(--accent);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty-list {
+  padding: 24px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ===== Zone de droite : accueil, graphe, éditeur ===== */
+.editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  /* La bande de couleur de la note, en haut */
+  box-shadow: inset 0 5px 0 var(--cover, transparent);
+}
+
+/* Accueil */
+.home {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 56px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.home-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.home-art { width: 92px; height: 70px; }
+
+.home-title {
+  margin: 4px 0 0;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 400;
+}
+
+.recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.recent-card {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 3px 0 var(--cover, transparent);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.recent-card:hover { background: var(--hover); transform: translateY(-2px); }
+
+.recent-title {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.recent-path {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.recent-preview {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.recent-card time {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.shelf {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.shelf-card {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--raised);
+}
+
+.shelf-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.shelf-head .count { margin-left: auto; font-weight: 400; }
+
+.shelf-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shelf-card button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.shelf-card button:hover { background: var(--hover); }
+
+/* Graphe */
+.graph-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 26px 30px 30px;
+}
+
+.graph-box {
+  flex: 1;
+  min-height: 300px;
+  position: relative;
+  border-radius: 18px;
+  background: var(--graph-bg);
+  overflow: hidden;
+}
+
+.graph-box canvas { position: absolute; inset: 0; cursor: pointer; }
+
+/* Éditeur d'une note */
+.editor-inner {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 18px 52px 56px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tabs {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface);
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab.active { background: var(--raised); color: var(--text); font-weight: 500; }
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  animation: rise 0.25s ease both;
+}
+
+.title-input {
+  width: 100%;
+  margin-top: 22px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: 46px;
+  line-height: 1.08;
+  color: var(--text);
+  padding: 0;
+}
+.title-input::placeholder { color: var(--muted); opacity: 0.55; }
+
+.meta {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.cover-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cover-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--control);
+  cursor: pointer;
+}
+.cover-dot.active { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3px var(--text); }
+
+/* Barre d'outils */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 20px 0 6px;
+  padding: 6px;
+  background: var(--surface);
+  border-radius: 999px;
+}
+
+.toolbar button,
+.toolbar select {
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 13px;
+  padding: 0 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolbar button:hover { background: var(--hover); }
+
+.toolbar select {
+  background: var(--raised);
+  padding-right: 6px;
+}
+
+.tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--raised);
+}
+.tool-group button { background: transparent; }
+
+.swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.swatch:hover { background: var(--hover); }
+.swatch input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.swatch-letter {
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.swatch-letter.highlight {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #f3e7a6;
+  color: #1f201d;
+}
+
+/* Bouton Dicter : il pulse pendant l'écoute */
+.mic-btn {
+  margin-left: auto;
+  background: var(--text) !important;
+  color: var(--paper) !important;
+  padding: 0 12px !important;
+}
+.mic-btn.recording { background: var(--danger) !important; animation: pulse 1.3s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.45); }
+  50% { box-shadow: 0 0 0 7px rgba(180, 35, 24, 0); }
+}
+
+.dictation-status {
+  align-self: flex-start;
+  margin: 2px 0 0 8px;
+  font-size: 12.5px;
+  color: var(--danger);
+  font-style: italic;
+}
+
+.hint {
+  font-size: 12.5px;
+  padding: 0 8px;
+  align-self: center;
+}
+
+.note-body {
+  min-height: 300px;
+  padding: 16px 2px 40px;
+  font-size: 17px;
+  line-height: 1.7;
+  outline: none;
+}
+.note-body:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+}
+.note-body h1 { font-family: var(--font-serif); font-weight: 400; font-size: 34px; margin: 0.8em 0 0.3em; }
+.note-body h2 { font-family: var(--font-serif); font-weight: 400; font-size: 27px; margin: 0.8em 0 0.3em; }
+.note-body h3 { font-size: 19px; font-weight: 600; margin: 0.8em 0 0.3em; }
+.note-body ul,
+.note-body ol { padding-left: 1.4em; }
+
+/* ===== Schéma ===== */
+.board {
+  position: relative;
+  flex: 1;
+  min-height: 460px;
+  margin-top: 10px;
+  border-radius: 18px;
+  overflow: hidden;
+  background-color: var(--surface);
+  /* Trame de points, comme un cahier quadrillé léger */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22'%3E%3Ccircle cx='2' cy='2' r='1.2' fill='%23a09d92' fill-opacity='0.35'/%3E%3C/svg%3E");
+}
+
+.board-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.board-links line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+
+.card-box {
+  position: absolute;
+  min-height: 84px;
+  border-radius: 14px;
+  background: var(--raised);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
+}
+.card-box.selected { box-shadow: 0 0 0 2px var(--accent); }
+.card-box.link-source { box-shadow: 0 0 0 2px var(--danger); }
+.board.linking .card-box { cursor: crosshair; }
+
+.card-grip {
+  height: 14px;
+  background: var(--selected);
+  cursor: grab;
+}
+.card-grip:active { cursor: grabbing; }
+
+.card-text {
+  min-height: 56px;
+  padding: 10px 12px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  outline: none;
+}
+.card-text:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+}
+
+/* ===== Fichiers ===== */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 26px 20px;
+  border: 1px dashed var(--control);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.drop-zone .lucide { width: 28px; height: 28px; color: var(--accent); }
+.drop-zone p { margin: 0; font-size: 14px; }
+.drop-zone.over { background: var(--selected); border-color: var(--accent); }
+
+.drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.file-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  transition: transform 0.15s ease;
+}
+.file-item:hover { transform: translateX(2px); }
+
+.file-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: none;
+  color: var(--muted);
+}
+.file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.file-actions { display: flex; gap: 2px; }
+
+/* ===== Liens ===== */
+.pane > .section-title { margin: 22px 0 8px; }
+
+.link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.link-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.link-item:hover { background: var(--hover); }
+.link-item .lucide { color: var(--accent); }
+
+.link-missing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ===== Fenêtres ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: start center;
+  padding: 12vh 16px 16px;
+  background: rgba(20, 18, 12, 0.28);
+  animation: fade 0.2s ease both;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-card {
+  width: min(460px, 100%);
+  padding: 20px 22px 22px;
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--float-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-card.wide { width: min(640px, 100%); }
+.modal-card.switcher { padding: 14px; gap: 10px; }
+
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.switch-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--raised);
+  font-size: 15px;
+}
+.switch-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+
+.switch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.switch-item.active,
+.switch-item:hover { background: var(--hover); }
+
+.qr-box {
+  align-self: center;
+  padding: 14px;
+  border-radius: 16px;
+  background: #fff;
+  min-height: 60px;
+}
+.qr-box img, .qr-box canvas { display: block; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.field input {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.warning {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff4e0;
+  color: #7a4a00;
+  font-size: 13px;
+}
+
+.scan-video {
+  width: 100%;
+  border-radius: 16px;
+  background: #111;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* Recadrage : la photo, le cadre et les quatre poignées */
+.crop-stage {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+.crop-stage img { display: block; width: 100%; height: auto; }
+
+.crop-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+#crop-poly {
+  fill: rgba(27, 110, 102, 0.16);
+  stroke: var(--accent);
+  stroke-width: 0.004;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2px;
+}
+
+.handle {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: grab;
+  touch-action: none;
+}
+
+/* Notification discrète */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 60;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--paper);
+  font-size: 13.5px;
+  box-shadow: var(--float-shadow);
+  transform: translate(-50%, 16px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.scrim { display: none; }
+
+/* ===== Téléphone et tablette ===== */
+@media (max-width: 1000px) {
+  .app { grid-template-columns: 1fr; }
+
+  .sheet {
+    grid-template-columns: 1fr;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* Le menu devient un tiroir qui glisse depuis la gauche */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: min(300px, 86vw);
+    background: var(--chrome);
+    transform: translateX(-105%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* Le tiroir n'a d'ombre que quand il est ouvert (il flotte alors au-dessus de la page) */
+  .app.menu-open .sidebar {
+    transform: none;
+    box-shadow: var(--float-shadow);
+  }
+  .tree-wrap { max-height: none; }
+
+  .app.menu-open .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.25);
+  }
+
+  .menu-btn { display: inline-block; }
+  .back-btn { display: inline-block; }
+
+  /* Soit la liste, soit l'éditeur (ou l'accueil) */
+  .notes,
+  .editor { display: none; }
+  .app:not(.show-editor) .notes { display: flex; }
+  .app.show-editor .editor { display: flex; }
+
+  .notes-head { padding: 18px 16px 12px; }
+  .sub-title { font-size: 26px; }
+  .home { padding: 18px 20px 40px; }
+  .editor-inner { padding: 12px 18px 40px; }
+  .graph-view { padding: 18px 16px 20px; }
+  .title-input { font-size: 34px; }
+  .tabs { flex: 1; }
+  .tab span { display: none; }
+
+  /* La barre d'outils défile sur le côté */
+  .toolbar { flex-wrap: nowrap; overflow-x: auto; border-radius: 16px; }
+  .toolbar > * { flex: none; }
+  .mic-btn { margin-left: 0; }
+  .board { min-height: 380px; }
+}
+
+/* Sur téléphone, pas de survol : les boutons de gestion sont toujours là */
+@media (hover: none) {
+  .tools { display: flex; }
+  .tree-row .count { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Menu -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">C</span>
+      <span class="brand-name">Carnet</span>
+      <button class="icon-btn" id="search-btn" title="Aller à une note (Ctrl+O)" aria-label="Aller à une note">
+        <i data-lucide="search"></i>
+      </button>
+    </div>
+
+    <nav class="nav" aria-label="Vues">
+      <button class="nav-item" data-view="home"><i data-lucide="house"></i>Accueil</button>
+      <button class="nav-item" data-view="graph"><i data-lucide="network"></i>Graphe</button>
+    </nav>
+
+    <div class="side-section">
+      <div class="sidebar-head">
+        <span class="label">Carnets</span>
+        <button class="icon-btn small" id="add-cat" title="Nouvelle catégorie" aria-label="Nouvelle catégorie">
+          <i data-lucide="plus"></i>
+        </button>
+      </div>
+      <nav class="tree-wrap" aria-label="Catégories et sous-catégories">
+        <ul class="tree" id="tree"></ul>
+      </nav>
+    </div>
+
+    <div class="side-section">
+      <div class="sidebar-head"><span class="label">Tags</span></div>
+      <ul class="tags" id="tags"></ul>
+    </div>
+
+    <div class="sidebar-foot">
+      <p class="sync-status"><span class="dot-teal" aria-hidden="true"></span>Enregistré sur cet appareil</p>
+      <div class="accents" id="accents" role="group" aria-label="Couleur d'accent"></div>
+    </div>
+  </aside>
+
+  <!-- La feuille : liste des notes et éditeur -->
+  <div class="sheet">
+
+    <section class="notes" id="notes-panel">
+      <header class="notes-head">
+        <button class="text-btn menu-btn" data-open-menu>Menu</button>
+        <div class="notes-title">
+          <h2 class="sub-title" id="sub-title">Mes notes</h2>
+          <p class="muted" id="sub-count"></p>
+        </div>
+        <button class="btn" id="new-note"><i data-lucide="square-pen"></i>Nouvelle note</button>
+      </header>
+      <ul class="note-list" id="note-list"></ul>
+    </section>
+
+    <section class="editor" id="editor">
+
+      <!-- Accueil : notes récentes et carnets -->
+      <div class="home" id="home">
+        <div class="home-top">
+          <button class="text-btn menu-btn" data-open-menu>Menu</button>
+          <svg class="home-art" viewBox="0 0 120 90" aria-hidden="true">
+            <rect x="26" y="14" width="64" height="58" rx="6" fill="var(--paper-2)" transform="rotate(-8 58 43)"/>
+            <rect x="30" y="16" width="64" height="58" rx="6" fill="var(--paper-3)" transform="rotate(-2 62 45)"/>
+            <rect x="34" y="18" width="64" height="58" rx="6" fill="var(--paper)" stroke="var(--border)"/>
+            <path d="M44 34h44M44 44h36M44 54h40M44 64h24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+          </svg>
+        </div>
+        <h1 class="home-title">Carnet</h1>
+        <h2 class="section-title">Reprendre là où tu en étais</h2>
+        <ul class="recent" id="recent"></ul>
+        <h2 class="section-title">Tes carnets</h2>
+        <ul class="shelf" id="shelf"></ul>
+      </div>
+
+      <!-- Graphe des notes reliées -->
+      <div class="graph-view" id="graph-view" hidden>
+        <div class="graph-head">
+          <h2 class="section-title">Graphe des notes</h2>
+          <p class="muted" id="graph-count"></p>
+        </div>
+        <div class="graph-box"><canvas id="graph-canvas" aria-label="Graphe des liens entre notes"></canvas></div>
+      </div>
+
+      <!-- Une note ouverte -->
+      <div class="editor-inner" id="editor-inner" hidden>
+        <div class="editor-top">
+          <button class="text-btn back-btn" data-back>← Notes</button>
+          <nav class="tabs" aria-label="Volets de la note">
+            <button class="tab" data-tab="text"><i data-lucide="pen-line"></i>Texte</button>
+            <button class="tab" data-tab="schema"><i data-lucide="workflow"></i>Schéma</button>
+            <button class="tab" data-tab="files"><i data-lucide="paperclip"></i>Fichiers</button>
+            <button class="tab" data-tab="links"><i data-lucide="link-2"></i>Liens</button>
+          </nav>
+          <button class="icon-btn" id="qr-btn" title="QR code de la note" aria-label="QR code de la note"><i data-lucide="qr-code"></i></button>
+          <button class="icon-btn danger" id="delete-note" title="Supprimer la note" aria-label="Supprimer la note"><i data-lucide="trash-2"></i></button>
+        </div>
+
+        <!-- Volet Texte -->
+        <div class="pane" id="pane-text" data-pane="text">
+          <input class="title-input" id="note-title" placeholder="Sans titre" aria-label="Titre de la note">
+          <p class="meta" id="meta"></p>
+          <div class="cover-row" id="cover-row" aria-label="Couleur de la note"></div>
+
+          <div class="toolbar" id="toolbar">
+            <select id="font-select" title="Police" aria-label="Police">
+              <option value="'Instrument Sans', Inter, system-ui, sans-serif">Instrument Sans</option>
+              <option value="'Instrument Serif', Georgia, serif">Instrument Serif</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="Verdana, sans-serif">Verdana</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+              <option value="Segoe UI, system-ui, sans-serif">Segoe UI</option>
+            </select>
+            <select id="size-select" title="Taille" aria-label="Taille">
+              <option value="12">12</option>
+              <option value="14">14</option>
+              <option value="16" selected>16</option>
+              <option value="20">20</option>
+              <option value="24">24</option>
+              <option value="30">30</option>
+            </select>
+            <span class="tool-group">
+              <button data-cmd="bold" title="Gras" aria-label="Gras"><i data-lucide="bold"></i></button>
+              <button data-cmd="italic" title="Italique" aria-label="Italique"><i data-lucide="italic"></i></button>
+              <button data-cmd="underline" title="Souligné" aria-label="Souligné"><i data-lucide="underline"></i></button>
+            </span>
+            <span class="tool-group">
+              <label class="swatch" title="Couleur du texte">
+                <input type="color" id="color-input" value="#1f201d" aria-label="Couleur du texte">
+                <span class="swatch-letter">A</span>
+              </label>
+              <label class="swatch" title="Surlignage">
+                <input type="color" id="highlight-input" value="#f3e7a6" aria-label="Surlignage">
+                <span class="swatch-letter highlight">A</span>
+              </label>
+            </span>
+            <select id="heading-select" title="Style de paragraphe" aria-label="Style de paragraphe">
+              <option value="p">Texte normal</option>
+              <option value="h1">Titre 1</option>
+              <option value="h2">Titre 2</option>
+              <option value="h3">Titre 3</option>
+            </select>
+            <span class="tool-group">
+              <button data-cmd="insertUnorderedList" title="Liste à puces" aria-label="Liste à puces"><i data-lucide="list"></i></button>
+              <button data-cmd="insertOrderedList" title="Liste numérotée" aria-label="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+            </span>
+            <span class="tool-group">
+              <button data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche"><i data-lucide="align-left"></i></button>
+              <button data-cmd="justifyCenter" title="Centrer" aria-label="Centrer"><i data-lucide="align-center"></i></button>
+              <button data-cmd="justifyRight" title="Aligner à droite" aria-label="Aligner à droite"><i data-lucide="align-right"></i></button>
+            </span>
+            <button data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><i data-lucide="eraser"></i></button>
+            <button class="mic-btn" id="dictate-btn" aria-pressed="false" title="Dicter (reconnaissance vocale)"><i data-lucide="mic"></i>Dicter</button>
+          </div>
+          <span class="dictation-status" id="dictation-status" hidden>Je t’écoute</span>
+
+          <div class="note-body" id="note-body" contenteditable="true" spellcheck="true"
+               data-placeholder="Commence à écrire, ou appuie sur Dicter. Tape [[Titre]] pour relier une autre note."></div>
+        </div>
+
+        <!-- Volet Schéma -->
+        <div class="pane" id="pane-schema" data-pane="schema" hidden>
+          <div class="toolbar">
+            <button class="pill-btn" id="schema-add"><i data-lucide="plus"></i>Carte</button>
+            <button class="pill-btn" id="schema-link" aria-pressed="false"><i data-lucide="git-commit-horizontal"></i>Relier</button>
+            <button class="pill-btn" id="schema-delete"><i data-lucide="trash-2"></i>Supprimer</button>
+            <span class="muted hint" id="schema-hint"></span>
+          </div>
+          <div class="board" id="board"></div>
+        </div>
+
+        <!-- Volet Fichiers -->
+        <div class="pane" id="pane-files" data-pane="files" hidden>
+          <div class="drop-zone" id="drop-zone">
+            <i data-lucide="upload-cloud"></i>
+            <p>Glisse des fichiers ici</p>
+            <div class="drop-actions">
+              <button class="pill-btn" id="pick-files"><i data-lucide="paperclip"></i>Choisir des fichiers</button>
+              <button class="pill-btn primary" id="scan-btn"><i data-lucide="scan-line"></i>Scanner un document</button>
+            </div>
+            <input type="file" id="file-input" multiple hidden>
+          </div>
+          <ul class="file-list" id="file-list"></ul>
+        </div>
+
+        <!-- Volet Liens -->
+        <div class="pane" id="pane-links" data-pane="links" hidden>
+          <h3 class="section-title">Liens sortants</h3>
+          <ul class="link-list" id="links-out"></ul>
+          <h3 class="section-title">Liens entrants</h3>
+          <ul class="link-list" id="links-in"></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Aller à une note (Ctrl+O) -->
+<div class="modal" id="switcher-modal" hidden>
+  <div class="modal-card switcher" role="dialog" aria-modal="true" aria-label="Aller à une note">
+    <input class="switch-input" id="switch-input" placeholder="Nom d'une note, ou un mot de son contenu…" aria-label="Rechercher une note">
+    <ul class="switch-list" id="switch-list"></ul>
+  </div>
+</div>
+
+<!-- QR code d'une note -->
+<div class="modal" id="qr-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 class="section-title">QR code de la note</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <p class="muted">Scanne-le avec un téléphone pour ouvrir la note là-bas. Le QR code contient le texte, pas les fichiers ni le schéma.</p>
+    <div class="qr-box" id="qr-box"></div>
+    <label class="field">Adresse de ton site en ligne
+      <input id="qr-base" type="url" placeholder="https://…">
+    </label>
+    <p class="warning" id="qr-warning" hidden></p>
+    <div class="modal-actions">
+      <button class="pill-btn" id="qr-scan"><i data-lucide="qr-code"></i>Scanner un QR code</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scanner de document : capture, recadrage, numérisation -->
+<div class="modal" id="scan-modal" hidden>
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2 class="section-title">Scanner un document</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+
+    <div id="scan-camera">
+      <video id="scan-video" class="scan-video" playsinline muted></video>
+      <div class="modal-actions">
+        <button class="pill-btn primary" id="scan-capture"><i data-lucide="camera"></i>Capturer</button>
+        <button class="pill-btn" id="scan-photo-btn"><i data-lucide="image"></i>Utiliser une photo</button>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" hidden>
+    </div>
+
+    <div id="scan-crop" hidden>
+      <p class="muted">Place les quatre coins sur les bords de la feuille. La page sera redressée et nettoyée.</p>
+      <div class="crop-stage" id="crop-stage">
+        <img id="crop-img" alt="Photo à recadrer">
+        <svg class="crop-svg" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <polygon id="crop-poly" points=""/>
+        </svg>
+        <button class="handle" data-corner="0" aria-label="Coin haut gauche"></button>
+        <button class="handle" data-corner="1" aria-label="Coin haut droit"></button>
+        <button class="handle" data-corner="2" aria-label="Coin bas droit"></button>
+        <button class="handle" data-corner="3" aria-label="Coin bas gauche"></button>
+      </div>
+      <div class="modal-actions">
+        <button class="pill-btn" id="scan-retake"><i data-lucide="rotate-ccw"></i>Reprendre</button>
+        <button class="pill-btn primary" id="scan-apply"><i data-lucide="check"></i>Numériser</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scanner un QR code avec la caméra -->
+<div class="modal" id="qr-scan-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 class="section-title">Scanner un QR code</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <video id="qr-video" class="scan-video" playsinline muted></video>
+    <p class="muted" id="qr-scan-status">Pointe la caméra vers le QR code…</p>
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Bibliothèques externes (chargées depuis des CDN, rien à installer) -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<script>
+// ===== Carnet : cœur de l'application =====
+//
+// Les données ressemblent à ceci :
+// categories = [
+//   { id, name, color, open, subs: [
+//     { id, name, notes: [ note ] }
+//   ] }
+// ]
+// Une note : { id, title, html, font, updated, cover, attachments, schema }
+//   - html : le texte mis en forme (gras, couleurs...)
+//   - attachments : la liste des fichiers (les fichiers eux-mêmes sont dans files.js)
+//   - schema : les cartes et les liens du schéma (schema.js)
+//
+// Pour la synchro entre appareils, seules loadState() et save() devront changer.
+
+const STORAGE_KEY = 'carnet-v1';
+const ACCENT_KEY = 'carnet-accent';
+const DEFAULT_FONT = "'Instrument Sans', Inter, system-ui, sans-serif";
+
+// Couleurs des catégories (un petit point pour les reconnaître)
+const CATEGORY_COLORS = ['#1b6e66', '#a86b1c', '#7a5ea8', '#2f6fa3', '#5f8a3e', '#b0505a'];
+// Couleurs de couverture d'une note (une bande en haut de l'éditeur)
+const COVERS = ['', '#cfe6df', '#f1dfc2', '#e1d9f0', '#d5e3f2', '#f1d3d3'];
+// Couleurs d'accent que l'utilisateur peut choisir
+const ACCENTS = ['#1b6e66', '#2f5fa8', '#7a4fb0', '#a86b1c', '#b0505a'];
+
+// Raccourcis
+const $ = (id) => document.getElementById(id);
+const $$ = (selector) => document.querySelectorAll(selector);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = (text) => String(text).replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
+// Texte brut d'un morceau de HTML (sans les balises)
+function plainText(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent;
+}
+
+// Les liens [[Titre]] et les tags #mot d'une note
+const linkTitles = (note) => [...plainText(note.html).matchAll(/\[\[([^\]\n]+?)\]\]/g)].map((m) => m[1].trim());
+const tagsOf = (note) => [...new Set(
+  [...plainText(note.html).matchAll(/(?:^|\s)#([\p{L}\p{N}_-]+)/gu)].map((m) => m[1].toLowerCase())
+)];
+const sameTitle = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+
+// Crée une note vide (ou avec un titre et un contenu)
+function makeNote(title = '', html = '') {
+  return {
+    id: uid(), title, html, font: DEFAULT_FONT, updated: Date.now(), cover: '',
+    attachments: [], schema: { cards: [], links: [] },
+  };
+}
+
+// ----- Données -----
+
+function defaultState() {
+  return {
+    categories: [
+      {
+        id: uid(), name: 'Cours', color: CATEGORY_COLORS[0], open: true,
+        subs: [
+          { id: uid(), name: 'Maths', notes: [
+            { ...makeNote('Bienvenue dans Carnet',
+              '<p>Tape <b>[[Idées]]</b> pour relier une note, ajoute un <b>#tag</b>, ou appuie sur <b>Dicter</b>.</p>'),
+              cover: COVERS[1] },
+          ] },
+          { id: uid(), name: 'Physique-chimie', notes: [] },
+        ],
+      },
+      { id: uid(), name: 'Personnel', color: CATEGORY_COLORS[1], open: true,
+        subs: [{ id: uid(), name: 'Idées', notes: [
+          { ...makeNote('Idées', '<p>Une idée par ligne.</p>'), cover: COVERS[4] },
+        ] }] },
+    ],
+  };
+}
+
+// Ajoute les champs manquants aux notes enregistrées avant cette version
+function upgradeNote(note) {
+  note.cover = note.cover || '';
+  note.attachments = note.attachments || [];
+  note.schema = note.schema || { cards: [], links: [] };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const data = raw ? JSON.parse(raw) : defaultState();
+    data.categories.forEach((cat) => cat.subs.forEach((sub) => sub.notes.forEach(upgradeNote)));
+    return data;
+  } catch (error) {
+    console.warn('Lecture impossible, carnet de départ utilisé :', error);
+    return defaultState();
+  }
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('Sauvegarde impossible :', error);
+  }
+}
+
+let state = loadState();
+let selection = { cat: null, sub: null }; // ce qui est ouvert dans le menu
+let noteId = null;                        // la note ouverte
+let savedRange = null;                    // le texte sélectionné dans la note
+let filterTag = null;                     // tag affiché dans la liste, s'il y en a un
+let showGraph = false;                    // le graphe remplace l'éditeur
+let activeTab = 'text';                   // volet ouvert : texte, schéma, fichiers, liens
+
+// ----- Lecture des données -----
+
+const findCat = (catId) => state.categories.find((c) => c.id === catId);
+const findSub = (catId, subId) => {
+  const cat = findCat(catId);
+  return cat ? cat.subs.find((s) => s.id === subId) : undefined;
+};
+const currentSub = () => (selection.cat && selection.sub ? findSub(selection.cat, selection.sub) : null);
+const currentNote = () => {
+  const sub = currentSub();
+  return sub ? sub.notes.find((n) => n.id === noteId) || null : null;
+};
+
+// Toutes les notes, avec leur catégorie et leur sous-catégorie
+function allNotes() {
+  const all = [];
+  state.categories.forEach((cat) => cat.subs.forEach((sub) => sub.notes.forEach((note) => all.push({ cat, sub, note }))));
+  return all;
+}
+const findPlace = (id) => allNotes().find((entry) => entry.note.id === id);
+
+// Les notes qui pointent vers celle-ci avec [[Titre]]
+function backlinksOf(note) {
+  return allNotes().filter(({ note: other }) => other.id !== note.id
+    && linkTitles(other).some((title) => sameTitle(title, note.title)));
+}
+
+// Date lisible : « 27 oct., 14:32 »
+function formatDate(timestamp) {
+  return new Date(timestamp).toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// Relance les icônes Lucide après un changement de l'affichage
+function refreshIcons() {
+  if (window.lucide) window.lucide.createIcons();
+}
+
+// ----- Menu : catégories et sous-catégories -----
+
+function renderTree() {
+  $('tree').innerHTML = state.categories.map((cat, index) => {
+    const color = cat.color || CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+    const total = cat.subs.reduce((sum, sub) => sum + sub.notes.length, 0);
+    return `
+      <li class="cat ${cat.open ? '' : 'collapsed'}">
+        <div class="tree-row cat-row" data-row="cat" data-cat="${cat.id}">
+          <span class="caret">${cat.open ? '▾' : '▸'}</span>
+          <span class="dot" style="background:${color}"></span>
+          <span class="name cat-name">${esc(cat.name)}</span>
+          <span class="count">${total}</span>
+          <span class="tools">
+            <button data-action="add-sub">+ Sous</button>
+            <button data-action="rename-cat">Renommer</button>
+            <button data-action="delete-cat">Supprimer</button>
+          </span>
+        </div>
+        <ul class="subs">
+          ${cat.subs.map((sub) => `
+            <li class="tree-row sub-row ${selection.sub === sub.id && !filterTag ? 'active' : ''}"
+                data-row="sub" data-cat="${cat.id}" data-sub="${sub.id}">
+              <span class="name">${esc(sub.name)}</span>
+              <span class="count">${sub.notes.length}</span>
+              <span class="tools">
+                <button data-action="rename-sub">Renommer</button>
+                <button data-action="delete-sub">Supprimer</button>
+              </span>
+            </li>`).join('')}
+        </ul>
+      </li>`;
+  }).join('');
+}
+
+// Les tags de toutes les notes, avec leur nombre d'utilisations
+function renderTags() {
+  const counts = new Map();
+  allNotes().forEach(({ note }) => tagsOf(note).forEach((tag) => counts.set(tag, (counts.get(tag) || 0) + 1)));
+  const tags = [...counts].sort((a, b) => b[1] - a[1]);
+  $('tags').innerHTML = tags.length
+    ? tags.map(([tag, n]) => `
+        <li><button class="tag-btn ${filterTag === tag ? 'active' : ''}" data-tag="${esc(tag)}">
+          <span>#${esc(tag)}</span><span class="count">${n}</span></button></li>`).join('')
+    : '<li class="hint-line">Écris #mot dans une note pour créer un tag.</li>';
+}
+
+// ----- Liste des notes -----
+
+// Affiche une liste de cartes : { note, place } où place est le texte « Catégorie · Sous-catégorie »
+function renderCards(items, emptyText) {
+  if (items.length === 0) {
+    $('note-list').innerHTML = `<li class="empty-list">${emptyText}</li>`;
+    return;
+  }
+  $('note-list').innerHTML = items.map(({ note, place }) => `
+    <li class="note-card ${note.id === noteId ? 'active' : ''}" data-note="${note.id}" style="--cover:${note.cover || 'transparent'}">
+      <h3>${esc(note.title || 'Sans titre')}</h3>
+      <p>${esc(plainText(note.html).trim().slice(0, 140)) || 'Note vide'}</p>
+      <div class="card-foot">
+        <time datetime="${new Date(note.updated).toISOString()}">${formatDate(note.updated)}</time>
+        ${place ? `<span class="place">${esc(place)}</span>` : ''}
+      </div>
+    </li>`).join('');
+}
+
+function renderNotes() {
+  const sub = currentSub();
+  $('new-note').disabled = !sub;
+
+  // Liste filtrée par tag : toutes les notes qui portent ce tag
+  if (filterTag) {
+    const matches = allNotes().filter(({ note }) => tagsOf(note).includes(filterTag));
+    $('sub-title').textContent = `#${filterTag}`;
+    $('sub-count').textContent = `${matches.length} note${matches.length === 1 ? '' : 's'} avec ce tag`;
+    renderCards(matches.map(({ cat, sub: s, note }) => ({ note, place: `${cat.name} · ${s.name}` })),
+      'Aucune note avec ce tag.');
+    return;
+  }
+
+  if (!sub) {
+    $('sub-title').textContent = 'Mes notes';
+    $('sub-count').textContent = 'Choisis une sous-catégorie dans le menu';
+    renderCards([], 'Ouvre le menu et choisis une sous-catégorie.');
+    return;
+  }
+
+  const count = sub.notes.length;
+  $('sub-title').textContent = sub.name;
+  $('sub-count').textContent = `${findCat(selection.cat).name} · ${count} note${count === 1 ? '' : 's'}`;
+  // Les notes modifiées récemment apparaissent en haut
+  const sorted = [...sub.notes].sort((a, b) => b.updated - a.updated);
+  renderCards(sorted.map((note) => ({ note, place: null })),
+    'Pas encore de note ici. Crée la première avec « Nouvelle note ».');
+}
+
+// Accueil : les 6 notes les plus récentes, toutes catégories confondues
+function renderRecent() {
+  const recent = [...allNotes()].sort((a, b) => b.note.updated - a.note.updated).slice(0, 6);
+  $('recent').innerHTML = recent.map(({ cat, sub, note }) => `
+    <li>
+      <button class="recent-card" data-open="${note.id}" style="--cover:${note.cover || 'transparent'}">
+        <span class="recent-title">${esc(note.title || 'Sans titre')}</span>
+        <span class="recent-path">${esc(cat.name)} · ${esc(sub.name)}</span>
+        <span class="recent-preview">${esc(plainText(note.html).trim().slice(0, 160)) || 'Note vide'}</span>
+        <time>${formatDate(note.updated)}</time>
+      </button>
+    </li>`).join('') || '<li class="empty-list">Aucune note pour l’instant. Crée-en une depuis une sous-catégorie.</li>';
+}
+
+// Accueil : une carte par catégorie, avec ses sous-catégories cliquables
+function renderShelf() {
+  $('shelf').innerHTML = state.categories.map((cat, index) => {
+    const color = cat.color || CATEGORY_COLORS[index % CATEGORY_COLORS.length];
+    const total = cat.subs.reduce((sum, sub) => sum + sub.notes.length, 0);
+    const subs = cat.subs.map((sub) => `
+      <li><button data-cat="${cat.id}" data-sub="${sub.id}"><span>${esc(sub.name)}</span><span class="count">${sub.notes.length}</span></button></li>`).join('');
+    return `
+      <li class="shelf-card">
+        <div class="shelf-head">
+          <span class="dot" style="background:${color}"></span>
+          <span>${esc(cat.name)}</span>
+          <span class="count">${total}</span>
+        </div>
+        <ul>${subs || '<li class="hint-line">Aucune sous-catégorie</li>'}</ul>
+      </li>`;
+  }).join('');
+}
+
+// ----- Vues : accueil, graphe, note -----
+
+// Affiche la bonne vue dans la zone de droite
+function renderEditorVisibility() {
+  const note = currentNote();
+  const showNote = Boolean(note) && !showGraph;
+  const showHome = !showGraph && !note;
+
+  $('graph-view').hidden = !showGraph;
+  $('home').hidden = !showHome;
+  $('editor-inner').hidden = !showNote;
+
+  // Sur téléphone, l'accueil remplace la liste quand aucune catégorie n'est ouverte
+  const homeOnPhone = showHome && !currentSub();
+  $('app').classList.toggle('show-editor', showGraph || showNote || homeOnPhone);
+
+  if (showHome) {
+    renderRecent();
+    renderShelf();
+  }
+  if (showGraph) renderGraph(); // graph.js
+  if (showNote) renderNoteView(note);
+}
+
+// Remplit les volets d'une note ouverte (le texte, lui, est rempli par openNote)
+function renderNoteView(note) {
+  $('editor').style.setProperty('--cover', note.cover || 'transparent');
+  renderCovers(note);
+  showTab(activeTab);
+}
+
+function showTab(tab) {
+  activeTab = tab;
+  $$('[data-tab]').forEach((button) => {
+    const active = button.dataset.tab === tab;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  $$('.pane').forEach((pane) => { pane.hidden = pane.dataset.pane !== tab; });
+
+  if (tab === 'schema') renderBoard();   // schema.js
+  if (tab === 'files') renderFiles();    // files.js
+  if (tab === 'links') renderLinks();
+  refreshIcons();
+}
+
+// Les couleurs de couverture proposées sous le titre
+function renderCovers(note) {
+  $('cover-row').innerHTML = COVERS.map((color) => `
+    <button class="cover-dot ${note.cover === color ? 'active' : ''}" data-cover="${color}"
+            style="background:${color || 'transparent'}" aria-label="${color ? 'Couleur de couverture' : 'Aucune couleur'}"></button>`).join('');
+}
+
+// La ligne sous le titre : où est la note et quand elle a été modifiée
+function updateMeta(note) {
+  const place = findPlace(note.id);
+  $('meta').textContent = place
+    ? `${place.cat.name} · ${place.sub.name} · modifiée ${formatDate(note.updated)}`
+    : `modifiée ${formatDate(note.updated)}`;
+}
+
+// Volet Liens : liens sortants et entrants
+function renderLinks() {
+  const note = currentNote();
+  if (!note) return;
+
+  const titles = [...new Set(linkTitles(note))];
+  $('links-out').innerHTML = titles.length ? titles.map((title) => {
+    const target = allNotes().find(({ note: other }) => sameTitle(other.title, title));
+    return target
+      ? `<li><button class="link-item" data-open="${target.note.id}"><i data-lucide="file-text"></i>${esc(title)}</button></li>`
+      : `<li class="link-missing"><span>${esc(title)}</span><button class="pill-btn small" data-create="${esc(title)}">Créer la note</button></li>`;
+  }).join('') : '<li class="hint-line">Tape [[Titre]] dans une note pour créer un lien.</li>';
+
+  const back = backlinksOf(note);
+  $('links-in').innerHTML = back.length ? back.map(({ note: other }) => `
+    <li><button class="link-item" data-open="${other.id}"><i data-lucide="file-text"></i>${esc(other.title || 'Sans titre')}</button></li>`).join('')
+    : '<li class="hint-line">Aucune note ne pointe vers celle-ci pour l’instant.</li>';
+}
+
+// Rendu complet après un changement de structure (catégories, notes, vues)
+function renderAll() {
+  renderTree();
+  renderTags();
+  renderNotes();
+  renderEditorVisibility();
+  refreshIcons();
+}
+
+// ----- Actions du menu -----
+
+// Renvoie le nom saisi, ou null si l'utilisateur annule ou laisse vide
+function askName(message, current = '') {
+  const name = window.prompt(message, current);
+  return name && name.trim() ? name.trim() : null;
+}
+
+function addCategory() {
+  const name = askName('Nom de la nouvelle catégorie ?');
+  if (!name) return;
+  const color = CATEGORY_COLORS[state.categories.length % CATEGORY_COLORS.length];
+  state.categories.push({ id: uid(), name, color, open: true, subs: [] });
+  save();
+  renderAll();
+}
+
+function treeAction(action, catId, subId) {
+  const cat = findCat(catId);
+  if (!cat) return;
+  const sub = subId ? findSub(catId, subId) : null;
+
+  if (action === 'add-sub') {
+    const name = askName('Nom de la sous-catégorie ?');
+    if (!name) return;
+    cat.subs.push({ id: uid(), name, notes: [] });
+    cat.open = true;
+  }
+  if (action === 'rename-cat') {
+    const name = askName('Nouveau nom de la catégorie ?', cat.name);
+    if (name) cat.name = name;
+  }
+  if (action === 'rename-sub' && sub) {
+    const name = askName('Nouveau nom de la sous-catégorie ?', sub.name);
+    if (name) sub.name = name;
+  }
+  if (action === 'delete-cat') {
+    if (!window.confirm(`Supprimer « ${cat.name} » et toutes ses notes ?`)) return;
+    state.categories = state.categories.filter((c) => c.id !== catId);
+    if (selection.cat === catId) clearSelection();
+  }
+  if (action === 'delete-sub' && sub) {
+    if (!window.confirm(`Supprimer « ${sub.name} » et toutes ses notes ?`)) return;
+    cat.subs = cat.subs.filter((s) => s.id !== subId);
+    if (selection.sub === subId) clearSelection();
+  }
+
+  save();
+  renderAll();
+}
+
+// Clic sur le menu : plier une catégorie, ou ouvrir une sous-catégorie
+$('tree').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-action]');
+  const row = event.target.closest('[data-row]');
+  if (!row) return;
+
+  const { cat: catId, sub: subId } = row.dataset;
+  if (button) {
+    treeAction(button.dataset.action, catId, subId);
+    return;
+  }
+  if (row.dataset.row === 'cat') {
+    const cat = findCat(catId);
+    cat.open = !cat.open;
+    save();
+    renderTree();
+  } else {
+    selectSubcategory(catId, subId);
+  }
+});
+
+function selectSubcategory(catId, subId) {
+  selection = { cat: catId, sub: subId };
+  noteId = null;
+  filterTag = null;
+  showGraph = false;
+  closeMenu();
+  renderAll();
+}
+
+function clearSelection() {
+  selection = { cat: null, sub: null };
+  noteId = null;
+}
+
+// Ouvre une note là où elle se trouve (catégorie et sous-catégorie comprises)
+function openNoteAnywhere(id) {
+  const place = findPlace(id);
+  if (!place) return;
+  selection = { cat: place.cat.id, sub: place.sub.id };
+  openNote(id);
+  closeMenu();
+}
+
+// Ouvre une note dans l'éditeur
+function openNote(id) {
+  noteId = id;
+  showGraph = false;
+  const note = currentNote();
+  if (!note) return;
+
+  $('note-title').value = note.title;
+  $('note-body').innerHTML = note.html;
+  $('note-body').style.fontFamily = note.font;
+  $('font-select').value = note.font;
+  updateMeta(note);
+  renderAll();
+}
+
+function newNote() {
+  const sub = currentSub();
+  if (!sub) return;
+  const note = makeNote();
+  sub.notes.push(note);
+  save();
+  activeTab = 'text';
+  openNote(note.id);
+  $('note-title').focus(); // on commence par le titre
+}
+
+// Crée une note avec ce titre dans la même sous-catégorie que la note courante
+function createNoteFromLink(title) {
+  const place = findPlace(noteId);
+  if (!place) return;
+  const note = makeNote(title);
+  place.sub.notes.push(note);
+  save();
+  openNoteAnywhere(note.id);
+}
+
+function deleteNote() {
+  const note = currentNote();
+  if (!note || !window.confirm(`Supprimer la note « ${note.title || 'Sans titre'} » ?`)) return;
+  const sub = currentSub();
+  sub.notes = sub.notes.filter((n) => n.id !== note.id);
+  noteId = null;
+  save();
+  renderAll();
+}
+
+// Clics sur la liste des notes, les cartes récentes, les tags et les vues
+$('note-list').addEventListener('click', (event) => {
+  const card = event.target.closest('[data-note]');
+  if (card) openNoteAnywhere(card.dataset.note);
+});
+
+$('recent').addEventListener('click', (event) => {
+  const card = event.target.closest('[data-open]');
+  if (card) openNoteAnywhere(card.dataset.open);
+});
+
+$('shelf').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-sub]');
+  if (button) selectSubcategory(button.dataset.cat, button.dataset.sub);
+});
+
+$('tags').addEventListener('click', (event) => {
+  const button = event.target.closest('[data-tag]');
+  if (!button) return;
+  filterTag = filterTag === button.dataset.tag ? null : button.dataset.tag;
+  showGraph = false;
+  renderAll();
+});
+
+$('links-out').addEventListener('click', (event) => {
+  const open = event.target.closest('[data-open]');
+  const create = event.target.closest('[data-create]');
+  if (open) openNoteAnywhere(open.dataset.open);
+  if (create) createNoteFromLink(create.dataset.create);
+});
+
+$('links-in').addEventListener('click', (event) => {
+  const open = event.target.closest('[data-open]');
+  if (open) openNoteAnywhere(open.dataset.open);
+});
+
+// Navigation latérale : accueil ou graphe
+$('sidebar').addEventListener('click', (event) => {
+  const view = event.target.closest('[data-view]');
+  if (!view) return;
+  showGraph = view.dataset.view === 'graph';
+  if (!showGraph) noteId = null;
+  closeMenu();
+  renderAll();
+});
+
+$('search-btn').addEventListener('click', openSwitcher);
+
+// ----- Éditeur : texte, titre, mise en forme -----
+
+const body = $('note-body');
+
+// Garde en mémoire le texte sélectionné dans la note
+// (cliquer sur un menu déroulant ferait perdre la sélection)
+document.addEventListener('selectionchange', () => {
+  const selected = window.getSelection();
+  if (selected.rangeCount && body.contains(selected.anchorNode)) {
+    savedRange = selected.getRangeAt(0).cloneRange();
+  }
+});
+
+function restoreSelection() {
+  body.focus();
+  if (!savedRange) return;
+  const selected = window.getSelection();
+  selected.removeAllRanges();
+  selected.addRange(savedRange);
+}
+
+// Sauvegarde la note après une modification du texte
+function noteChanged() {
+  const note = currentNote();
+  if (!note) return;
+  note.html = body.innerHTML;
+  touch(note);
+}
+
+// Date de modification, sauvegarde, puis rafraîchissement de la liste
+function touch(note) {
+  note.updated = Date.now();
+  save();
+  renderNotes();
+  renderTags();
+  updateMeta(note);
+}
+
+function runCommand(name) {
+  restoreSelection();
+  document.execCommand(name, false, null);
+  noteChanged();
+}
+
+// Applique un style CSS (police, taille, couleur) au texte sélectionné.
+// Renvoie false si rien n'est sélectionné.
+function styleSelection(property, value) {
+  restoreSelection();
+  const selected = window.getSelection();
+  if (!selected.rangeCount || selected.isCollapsed) return false;
+
+  const range = selected.getRangeAt(0);
+  const span = document.createElement('span');
+  span.style[property] = value;
+  span.appendChild(range.extractContents());
+  range.insertNode(span);
+
+  // On resélectionne le texte modifié, pour pouvoir enchaîner les réglages
+  const newRange = document.createRange();
+  newRange.selectNodeContents(span);
+  selected.removeAllRanges();
+  selected.addRange(newRange);
+
+  noteChanged();
+  return true;
+}
+
+// Les boutons de la barre ne doivent pas voler le focus au texte
+$('toolbar').addEventListener('mousedown', (event) => {
+  if (event.target.closest('button')) event.preventDefault();
+});
+
+$('toolbar').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-cmd]');
+  if (button) runCommand(button.dataset.cmd);
+});
+
+$('font-select').addEventListener('change', (event) => {
+  const font = event.target.value;
+  if (styleSelection('fontFamily', font)) return;   // du texte est sélectionné
+  const note = currentNote();                        // sinon : police de toute la note
+  if (!note) return;
+  note.font = font;
+  body.style.fontFamily = font;
+  noteChanged();
+});
+
+$('size-select').addEventListener('change', (event) => {
+  styleSelection('fontSize', `${event.target.value}px`);
+});
+
+$('color-input').addEventListener('input', (event) => {
+  styleSelection('color', event.target.value);
+});
+
+$('highlight-input').addEventListener('input', (event) => {
+  styleSelection('backgroundColor', event.target.value);
+});
+
+$('heading-select').addEventListener('change', (event) => {
+  restoreSelection();
+  document.execCommand('formatBlock', false, event.target.value);
+  noteChanged();
+  event.target.value = 'p';
+});
+
+$('note-title').addEventListener('input', (event) => {
+  const note = currentNote();
+  if (!note) return;
+  note.title = event.target.value;
+  touch(note);
+});
+
+body.addEventListener('input', noteChanged);
+
+$('cover-row').addEventListener('click', (event) => {
+  const dot = event.target.closest('[data-cover]');
+  const note = currentNote();
+  if (!dot || !note) return;
+  note.cover = dot.dataset.cover;
+  $('editor').style.setProperty('--cover', note.cover || 'transparent');
+  touch(note);
+  renderCovers(note);
+});
+
+$('delete-note').addEventListener('click', deleteNote);
+$('new-note').addEventListener('click', newNote);
+$('add-cat').addEventListener('click', addCategory);
+
+// Onglets de la note
+$$('[data-tab]').forEach((button) => {
+  button.addEventListener('click', () => showTab(button.dataset.tab));
+});
+
+// Retour à la liste (téléphone) et menu (téléphone)
+$$('[data-back]').forEach((button) => {
+  button.addEventListener('click', () => $('app').classList.remove('show-editor'));
+});
+
+// ----- Menu sur téléphone -----
+
+function openMenu() { $('app').classList.add('menu-open'); }
+function closeMenu() { $('app').classList.remove('menu-open'); }
+$$('[data-open-menu]').forEach((button) => button.addEventListener('click', openMenu));
+$('scrim').addEventListener('click', closeMenu);
+
+// ----- Couleur d'accent -----
+
+function applyAccent(color) {
+  document.documentElement.style.setProperty('--accent', color);
+  try { localStorage.setItem(ACCENT_KEY, color); } catch (error) { /* pas grave */ }
+}
+
+function renderAccents() {
+  let current = ACCENTS[0];
+  try { current = localStorage.getItem(ACCENT_KEY) || current; } catch (error) { /* pas grave */ }
+  applyAccent(current);
+  $('accents').innerHTML = ACCENTS.map((color) => `
+    <button class="accent-dot ${color === current ? 'active' : ''}" data-accent="${color}"
+            style="background:${color}" aria-label="Couleur d'accent ${color}"></button>`).join('');
+}
+
+$('accents').addEventListener('click', (event) => {
+  const dot = event.target.closest('[data-accent]');
+  if (!dot) return;
+  applyAccent(dot.dataset.accent);
+  renderAccents();
+});
+
+// ----- Fenêtres : aller à une note (Ctrl+O), fermeture -----
+
+let switchItems = [];
+let switchIndex = 0;
+
+function openSwitcher() {
+  $('switcher-modal').hidden = false;
+  $('switch-input').value = '';
+  switchIndex = 0;
+  renderSwitcher();
+  $('switch-input').focus();
+}
+
+function renderSwitcher() {
+  const query = $('switch-input').value.trim().toLowerCase();
+  switchItems = allNotes()
+    .filter(({ note }) => !query
+      || (note.title || '').toLowerCase().includes(query)
+      || plainText(note.html).toLowerCase().includes(query))
+    .slice(0, 8);
+  switchIndex = Math.min(switchIndex, Math.max(0, switchItems.length - 1));
+  $('switch-list').innerHTML = switchItems.map(({ cat, sub, note }, i) => `
+    <li><button class="switch-item ${i === switchIndex ? 'active' : ''}" data-open="${note.id}">
+      <span>${esc(note.title || 'Sans titre')}</span><span class="place">${esc(cat.name)} · ${esc(sub.name)}</span>
+    </button></li>`).join('') || '<li class="hint-line">Aucune note trouvée.</li>';
+}
+
+$('switch-input').addEventListener('input', () => { switchIndex = 0; renderSwitcher(); });
+
+$('switch-input').addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    switchIndex = (switchIndex + step + switchItems.length) % Math.max(1, switchItems.length);
+    renderSwitcher();
+  }
+  if (event.key === 'Enter' && switchItems[switchIndex]) {
+    closeModals();
+    openNoteAnywhere(switchItems[switchIndex].note.id);
+  }
+});
+
+$('switch-list').addEventListener('click', (event) => {
+  const item = event.target.closest('[data-open]');
+  if (!item) return;
+  closeModals();
+  openNoteAnywhere(item.dataset.open);
+});
+
+// Ferme toutes les fenêtres (et coupe la caméra si elle tourne)
+function closeModals() {
+  $$('.modal').forEach((modal) => { modal.hidden = true; });
+  if (typeof Camera !== 'undefined') Camera.stop();
+  if (typeof stopQrScan === 'function') stopQrScan();
+}
+
+$$('[data-close]').forEach((button) => button.addEventListener('click', closeModals));
+
+document.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
+    event.preventDefault();
+    openSwitcher();
+  }
+  if (event.key === 'Escape') closeModals();
+});
+
+// ----- Petit message en bas de l'écran -----
+
+function toast(message) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => el.classList.remove('show'), 3800);
+}
+
+// ----- Démarrage -----
+
+renderAccents();
+renderAll();
+
+</script>
+<script>
+// ===== Dictée vocale =====
+//
+// Utilise la reconnaissance vocale intégrée au navigateur (Chrome ou Edge).
+// Rien à installer : le navigateur écoute le micro et écrit à la place du clavier.
+// Quelques mots dictés deviennent de la ponctuation ou un retour à la ligne.
+
+const Voice = (() => {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const NEWLINE = '\u0001'; // marqueur interne pour « retour à la ligne »
+
+  // Mots dictés -> ce qu'on écrit à la place
+  const WORDS = {
+    'nouveau paragraphe': NEWLINE,
+    'nouvelle ligne': NEWLINE,
+    'à la ligne': NEWLINE,
+    "point d'interrogation": '?',
+    "point d'exclamation": '!',
+    'deux points': ':',
+    'point virgule': ';',
+    'virgule': ',',
+    'point': '.',
+  };
+
+  let recognizer = null;
+  let listening = false;
+
+  // Transforme la phrase dictée en morceaux : du texte, ou un retour à la ligne
+  function toParts(raw) {
+    let text = `${raw.trim()} `;
+    // On traite d'abord les expressions les plus longues (« point d'interrogation » avant « point »)
+    Object.keys(WORDS).sort((a, b) => b.length - a.length).forEach((word) => {
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Le mot doit être entier (les lettres accentuées comptent comme des lettres)
+      const pattern = new RegExp(`\\s*(?<!\\p{L})${escaped}(?!\\p{L})\\s*`, 'giu');
+      const value = WORDS[word];
+      // Une ponctuation se colle au mot précédent et laisse un espace après
+      text = text.replace(pattern, value === NEWLINE ? NEWLINE : `${value} `);
+    });
+    return text.split(NEWLINE).map((part) => part.trimStart()).filter((part, i, all) => part || i < all.length - 1);
+  }
+
+  // Écrit le texte dicté dans la note ouverte, à l'endroit du curseur
+  function insert(raw) {
+    if (!currentNote()) {
+      toast('Ouvre une note avant de dicter.');
+      return;
+    }
+    restoreSelection(); // app.js : remet le curseur là où on écrivait
+    toParts(raw).forEach((part, i, all) => {
+      if (i > 0) document.execCommand('insertParagraph', false, null);
+      if (part) document.execCommand('insertText', false, part);
+    });
+    noteChanged(); // app.js : sauvegarde la note
+  }
+
+  function showState(on) {
+    $('dictate-btn').classList.toggle('recording', on);
+    $('dictate-btn').setAttribute('aria-pressed', String(on));
+    $('dictation-status').hidden = !on;
+  }
+
+  function start() {
+    if (!Recognition) {
+      toast("La dictée ne marche pas dans ce navigateur. Essaie Chrome ou Edge.");
+      return;
+    }
+    if (!currentNote()) {
+      toast('Ouvre ou crée une note avant de dicter.');
+      return;
+    }
+
+    recognizer = new Recognition();
+    recognizer.lang = 'fr-FR';
+    recognizer.continuous = true;      // on dicte sans s'arrêter à chaque phrase
+    recognizer.interimResults = true;  // on voit les mots pendant qu'ils arrivent
+
+    recognizer.onresult = (event) => {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) insert(result[0].transcript);
+        else interim += result[0].transcript;
+      }
+      $('dictation-status').textContent = interim ? `… ${interim}` : 'Je t’écoute';
+    };
+
+    recognizer.onerror = (event) => {
+      // « no-speech » = silence : pas grave, on continue
+      if (event.error === 'no-speech') return;
+      toast(`Micro : ${event.error}`);
+      stop();
+    };
+
+    // Le navigateur coupe parfois l'écoute : on la relance tant que l'utilisateur dicte
+    recognizer.onend = () => {
+      if (listening) recognizer.start();
+    };
+
+    listening = true;
+    showState(true);
+    recognizer.start();
+  }
+
+  function stop() {
+    listening = false;
+    showState(false);
+    if (recognizer) recognizer.stop();
+  }
+
+  function toggle() {
+    if (listening) stop();
+    else start();
+  }
+
+  $('dictate-btn').addEventListener('click', toggle);
+
+  return { toggle, stop, toParts };
+})();
+
+</script>
+<script>
+// ===== Fichiers, pièces jointes et scanner de documents =====
+//
+// Les fichiers sont rangés dans IndexedDB, une base du navigateur qui accepte
+// de gros fichiers (localStorage, lui, est limité à quelques Mo).
+// La note ne garde que la liste : nom, type, taille et identifiant.
+
+// ----- Stockage des fichiers -----
+
+const FileStore = (() => {
+  let dbPromise = null;
+
+  // Ouvre la base une seule fois
+  function open() {
+    if (!dbPromise) {
+      dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open('carnet-files', 1);
+        request.onupgradeneeded = () => request.result.createObjectStore('files');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    return dbPromise;
+  }
+
+  // Lance une opération sur la table « files » et attend qu'elle soit finie
+  async function run(mode, action) {
+    const db = await open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('files', mode);
+      const request = action(tx.objectStore('files'));
+      tx.oncomplete = () => resolve(request ? request.result : undefined);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  return {
+    put: (id, blob) => run('readwrite', (store) => store.put(blob, id)),
+    get: (id) => run('readonly', (store) => store.get(id)),
+    remove: (id) => run('readwrite', (store) => store.delete(id)),
+  };
+})();
+
+// ----- Caméra (scanner de documents et QR codes) -----
+
+const Camera = (() => {
+  let stream = null;
+
+  // La caméra arrière est préférée sur téléphone
+  async function start(video) {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    await video.play();
+  }
+
+  function stop() {
+    if (stream) stream.getTracks().forEach((track) => track.stop());
+    stream = null;
+  }
+
+  return { start, stop };
+})();
+
+// ----- Pièces jointes -----
+
+const fileIcon = (type) => {
+  if (type.startsWith('image/')) return 'image';
+  if (type === 'application/pdf') return 'file-text';
+  return 'file';
+};
+
+function formatSize(bytes) {
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+// Ajoute des fichiers (choisis, glissés ou scannés) à la note ouverte
+async function addFiles(files) {
+  const note = currentNote();
+  if (!note) return;
+  for (const file of files) {
+    const id = uid();
+    await FileStore.put(id, file);
+    note.attachments.push({ id, name: file.name, type: file.type || 'application/octet-stream', size: file.size });
+  }
+  touch(note);
+  renderFiles();
+  if (files.length) toast(`${files.length} fichier${files.length > 1 ? 's' : ''} ajouté${files.length > 1 ? 's' : ''}.`);
+}
+
+function renderFiles() {
+  const note = currentNote();
+  if (!note) return;
+  const list = $('file-list');
+
+  if (note.attachments.length === 0) {
+    list.innerHTML = '<li class="hint-line">Aucun fichier pour l’instant.</li>';
+    return;
+  }
+
+  list.innerHTML = note.attachments.map((file) => `
+    <li class="file-item" data-file="${file.id}">
+      <div class="file-thumb">
+        ${file.type.startsWith('image/') ? '<img alt="" class="thumb">' : `<i data-lucide="${fileIcon(file.type)}"></i>`}
+      </div>
+      <div class="file-info">
+        <span class="file-name">${esc(file.name)}</span>
+        <span class="muted">${formatSize(file.size)}</span>
+      </div>
+      <div class="file-actions">
+        <button class="icon-btn small" data-action="open" title="Ouvrir" aria-label="Ouvrir"><i data-lucide="external-link"></i></button>
+        <button class="icon-btn small" data-action="share" title="Partager" aria-label="Partager"><i data-lucide="share-2"></i></button>
+        <button class="icon-btn small" data-action="download" title="Télécharger" aria-label="Télécharger"><i data-lucide="download"></i></button>
+        <button class="icon-btn small danger" data-action="delete" title="Supprimer" aria-label="Supprimer"><i data-lucide="trash-2"></i></button>
+      </div>
+    </li>`).join('');
+
+  refreshIcons();
+
+  // Les images montrent leur miniature
+  note.attachments.filter((file) => file.type.startsWith('image/')).forEach(async (file) => {
+    const blob = await FileStore.get(file.id);
+    const img = list.querySelector(`[data-file="${file.id}"] img`);
+    if (blob && img) img.src = URL.createObjectURL(blob);
+  });
+}
+
+function downloadBlob(file) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(file);
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+}
+
+// Partage natif (téléphone : AirDrop, WhatsApp, Mail...), sinon téléchargement
+async function shareFile(file) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: file.name });
+    } catch (error) {
+      // l'utilisateur a annulé : rien à faire
+    }
+    return;
+  }
+  downloadBlob(file);
+  toast('Partage direct indisponible ici : le fichier est téléchargé, envoie-le depuis ton téléphone.');
+}
+
+$('file-list').addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-action]');
+  const note = currentNote();
+  if (!button || !note) return;
+
+  const item = button.closest('[data-file]');
+  const meta = note.attachments.find((file) => file.id === item.dataset.file);
+  if (!meta) return;
+
+  if (button.dataset.action === 'delete') {
+    if (!window.confirm(`Supprimer « ${meta.name} » ?`)) return;
+    await FileStore.remove(meta.id);
+    note.attachments = note.attachments.filter((file) => file.id !== meta.id);
+    touch(note);
+    renderFiles();
+    return;
+  }
+
+  const blob = await FileStore.get(meta.id);
+  if (!blob) {
+    toast('Fichier introuvable.');
+    return;
+  }
+  const file = new File([blob], meta.name, { type: meta.type });
+
+  if (button.dataset.action === 'open') window.open(URL.createObjectURL(file), '_blank');
+  if (button.dataset.action === 'download') downloadBlob(file);
+  if (button.dataset.action === 'share') shareFile(file);
+});
+
+// Glisser-déposer et bouton « Choisir des fichiers »
+const dropZone = $('drop-zone');
+['dragenter', 'dragover'].forEach((type) => dropZone.addEventListener(type, (event) => {
+  event.preventDefault();
+  dropZone.classList.add('over');
+}));
+['dragleave', 'drop'].forEach((type) => dropZone.addEventListener(type, () => dropZone.classList.remove('over')));
+dropZone.addEventListener('drop', (event) => {
+  event.preventDefault();
+  addFiles([...event.dataTransfer.files]);
+});
+
+$('pick-files').addEventListener('click', () => $('file-input').click());
+$('file-input').addEventListener('change', (event) => {
+  addFiles([...event.target.files]);
+  event.target.value = '';
+});
+
+// ----- Scanner de document -----
+//
+// Principe : on prend une photo de la feuille, on place ses quatre coins,
+// puis le programme la redresse (perspective) et la rend nette, en noir et blanc.
+
+let scanSource = null;               // image source, réduite si elle est très grande
+let corners = [];                    // les 4 coins, en proportions (0 à 1) : haut gauche, haut droit, bas droit, bas gauche
+let draggedCorner = -1;
+
+function openScan() {
+  if (!currentNote()) {
+    toast('Ouvre une note avant de scanner.');
+    return;
+  }
+  $('scan-modal').hidden = false;
+  showScanStep('camera');
+  startScanCamera();
+}
+
+async function startScanCamera() {
+  try {
+    await Camera.start($('scan-video'));
+  } catch (error) {
+    toast('Caméra indisponible : utilise « Utiliser une photo ».');
+  }
+}
+
+function showScanStep(step) {
+  $('scan-camera').hidden = step !== 'camera';
+  $('scan-crop').hidden = step !== 'crop';
+}
+
+// Prend l'image de la caméra
+function captureFrame() {
+  const video = $('scan-video');
+  if (!video.videoWidth) {
+    toast('La caméra n’est pas encore prête.');
+    return;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  Camera.stop();
+  useCanvas(canvas);
+}
+
+// Charge une photo choisie sur l'appareil
+function usePhoto(file) {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(img.src);
+    useCanvas(canvas);
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function useCanvas(canvas) {
+  scanSource = limitSize(canvas, 2000); // une image trop grande ralentit le calcul
+  corners = [[0.08, 0.06], [0.92, 0.06], [0.92, 0.94], [0.08, 0.94]];
+  $('crop-img').src = scanSource.toDataURL('image/jpeg', 0.92);
+  showScanStep('crop');
+  drawCrop();
+}
+
+function limitSize(canvas, max) {
+  const scale = Math.min(1, max / Math.max(canvas.width, canvas.height));
+  if (scale === 1) return canvas;
+  const smaller = document.createElement('canvas');
+  smaller.width = Math.round(canvas.width * scale);
+  smaller.height = Math.round(canvas.height * scale);
+  smaller.getContext('2d').drawImage(canvas, 0, 0, smaller.width, smaller.height);
+  return smaller;
+}
+
+// Met à jour le cadre (polygone) et les poignées
+function drawCrop() {
+  $('crop-poly').setAttribute('points', corners.map(([x, y]) => `${x},${y}`).join(' '));
+  document.querySelectorAll('.handle').forEach((handle, i) => {
+    handle.style.left = `${corners[i][0] * 100}%`;
+    handle.style.top = `${corners[i][1] * 100}%`;
+  });
+}
+
+$('crop-stage').addEventListener('pointerdown', (event) => {
+  const handle = event.target.closest('.handle');
+  if (!handle) return;
+  draggedCorner = Number(handle.dataset.corner);
+  handle.setPointerCapture(event.pointerId);
+});
+
+$('crop-stage').addEventListener('pointermove', (event) => {
+  if (draggedCorner < 0) return;
+  const rect = $('crop-stage').getBoundingClientRect();
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+  corners[draggedCorner] = [clamp((event.clientX - rect.left) / rect.width), clamp((event.clientY - rect.top) / rect.height)];
+  drawCrop();
+});
+
+window.addEventListener('pointerup', () => { draggedCorner = -1; });
+
+// Traitement : redressement puis noir et blanc, puis ajout à la note
+function applyScan() {
+  const quad = corners.map(([x, y]) => [x * scanSource.width, y * scanSource.height]);
+  const page = warpToRect(scanSource, quad);
+  binarize(page);
+  page.toBlob(async (blob) => {
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
+    const file = new File([blob], `scan-${stamp}.png`, { type: 'image/png' });
+    closeModals();
+    await addFiles([file]);
+    showTab('files');
+  }, 'image/png');
+}
+
+function dist(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1]);
+}
+
+// Résout un système linéaire 8×8 (élimination de Gauss)
+function solve8(rows) {
+  for (let c = 0; c < 8; c++) {
+    let pivot = c;
+    for (let r = c + 1; r < 8; r++) {
+      if (Math.abs(rows[r][c]) > Math.abs(rows[pivot][c])) pivot = r;
+    }
+    [rows[c], rows[pivot]] = [rows[pivot], rows[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const factor = rows[r][c] / rows[c][c];
+      for (let k = c; k < 9; k++) rows[r][k] -= factor * rows[c][k];
+    }
+  }
+  return rows.map((row, i) => row[8] / row[i]);
+}
+
+// Trouve la transformation qui envoie 4 points « from » sur 4 points « to »
+function solveHomography(from, to) {
+  const rows = [];
+  for (let i = 0; i < 4; i++) {
+    const [x, y] = from[i];
+    const [u, v] = to[i];
+    rows.push([x, y, 1, 0, 0, 0, -u * x, -u * y, u]);
+    rows.push([0, 0, 0, x, y, 1, -v * x, -v * y, v]);
+  }
+  return solve8(rows);
+}
+
+// Applique la transformation à un point
+function mapPoint(h, x, y) {
+  const d = h[6] * x + h[7] * y + 1;
+  return [(h[0] * x + h[1] * y + h[2]) / d, (h[3] * x + h[4] * y + h[5]) / d];
+}
+
+// Redresse la zone délimitée par quad (haut gauche, haut droit, bas droit, bas gauche)
+function warpToRect(source, quad) {
+  const [tl, tr, br, bl] = quad;
+  const w = Math.round(Math.max(dist(tl, tr), dist(bl, br)));
+  const h = Math.round(Math.max(dist(tl, bl), dist(tr, br)));
+  // Pour chaque pixel de la page redressée, on cherche le pixel correspondant dans la photo
+  const H = solveHomography([[0, 0], [w, 0], [w, h], [0, h]], quad);
+
+  const srcData = source.getContext('2d').getImageData(0, 0, source.width, source.height).data;
+  const out = document.createElement('canvas');
+  out.width = w;
+  out.height = h;
+  const ctx = out.getContext('2d');
+  const image = ctx.createImageData(w, h);
+  const dst = image.data;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const [u, v] = mapPoint(H, x, y);
+      const sx = Math.min(source.width - 1, Math.max(0, Math.round(u)));
+      const sy = Math.min(source.height - 1, Math.max(0, Math.round(v)));
+      const s = (sy * source.width + sx) * 4;
+      const d = (y * w + x) * 4;
+      dst[d] = srcData[s];
+      dst[d + 1] = srcData[s + 1];
+      dst[d + 2] = srcData[s + 2];
+      dst[d + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return out;
+}
+
+// Noir et blanc « façon scanner » : chaque pixel est comparé à la moyenne de son voisinage.
+// Les zones sombres (l'encre) deviennent noires, le papier reste blanc, même si la lumière varie.
+function binarize(canvas) {
+  const { width: w, height: h } = canvas;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.getImageData(0, 0, w, h);
+  const d = image.data;
+
+  // Niveaux de gris
+  const gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    gray[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+  }
+
+  // Image intégrale : permet de calculer la moyenne d'une zone en 4 opérations
+  const W = w + 1;
+  const integral = new Float64Array(W * (h + 1));
+  for (let y = 1; y <= h; y++) {
+    let rowSum = 0;
+    for (let x = 1; x <= w; x++) {
+      rowSum += gray[(y - 1) * w + (x - 1)];
+      integral[y * W + x] = integral[(y - 1) * W + x] + rowSum;
+    }
+  }
+
+  const radius = Math.max(8, Math.round(Math.min(w, h) / 40));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(w, x + radius + 1);
+      const y0 = Math.max(0, y - radius);
+      const y1 = Math.min(h, y + radius + 1);
+      const area = (x1 - x0) * (y1 - y0);
+      const sum = integral[y1 * W + x1] - integral[y0 * W + x1] - integral[y1 * W + x0] + integral[y0 * W + x0];
+      const value = gray[y * w + x] < sum / area - 12 ? 0 : 255;
+      const i = (y * w + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = value;
+      d[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+$('scan-btn').addEventListener('click', openScan);
+$('scan-capture').addEventListener('click', captureFrame);
+$('scan-photo-btn').addEventListener('click', () => $('photo-input').click());
+$('photo-input').addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (file) usePhoto(file);
+  event.target.value = '';
+});
+$('scan-retake').addEventListener('click', () => {
+  showScanStep('camera');
+  startScanCamera();
+});
+$('scan-apply').addEventListener('click', applyScan);
+
+</script>
+<script>
+// ===== Schémas : des cartes reliées entre elles, un tableau par note =====
+//
+// note.schema = { cards: [{ id, x, y, w, text }], links: [{ from, to }] }
+// Les cartes se glissent par leur barre du haut. « Relier » permet de tracer
+// une flèche entre deux cartes (clic sur la première, puis sur la seconde).
+
+const CARD_HEIGHT = 84; // hauteur approximative d'une carte, pour centrer les liens
+
+let boardSelected = null; // carte sélectionnée
+let linkMode = false;     // mode « Relier » activé ?
+let linkFrom = null;      // première carte choisie en mode « Relier »
+
+// Centre d'une carte, utilisé pour tracer les liens
+const cardCenter = (card) => [card.x + card.w / 2, card.y + CARD_HEIGHT / 2];
+
+// Dessine toutes les cartes et tous les liens de la note ouverte
+function renderBoard() {
+  const note = currentNote();
+  if (!note) return;
+  const { cards } = note.schema;
+
+  $('board').innerHTML = `
+    <svg class="board-links" id="board-links" aria-hidden="true"></svg>
+    ${cards.map((card) => `
+      <div class="card-box ${card.id === boardSelected ? 'selected' : ''} ${card.id === linkFrom ? 'link-source' : ''}"
+           data-card="${card.id}" style="left:${card.x}px;top:${card.y}px;width:${card.w}px">
+        <div class="card-grip" title="Glisser la carte"></div>
+        <div class="card-text" contenteditable="true" spellcheck="false" data-placeholder="Écris ici…">${esc(card.text)}</div>
+      </div>`).join('')}`;
+
+  drawLinks();
+  $('board').classList.toggle('linking', linkMode);
+  $('schema-link').classList.toggle('active', linkMode);
+  $('schema-link').setAttribute('aria-pressed', String(linkMode));
+  $('schema-hint').textContent = linkMode
+    ? 'Clique la première carte, puis la seconde.'
+    : 'Glisse une carte par sa barre du haut. Clique son texte pour l’écrire.';
+}
+
+// Dessine les flèches entre les cartes reliées
+function drawLinks() {
+  const note = currentNote();
+  const svg = $('board-links');
+  if (!note || !svg) return;
+
+  const byId = new Map(note.schema.cards.map((card) => [card.id, card]));
+  svg.innerHTML = note.schema.links.map(({ from, to }) => {
+    const a = byId.get(from);
+    const b = byId.get(to);
+    if (!a || !b) return '';
+    const [x1, y1] = cardCenter(a);
+    const [x2, y2] = cardCenter(b);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" />`;
+  }).join('');
+}
+
+// Ajoute une carte, décalée pour ne pas tomber sur les autres
+$('schema-add').addEventListener('click', () => {
+  const note = currentNote();
+  if (!note) return;
+  const n = note.schema.cards.length;
+  const card = {
+    id: uid(),
+    x: 36 + (n % 4) * 230,
+    y: 36 + Math.floor(n / 4) * 130,
+    w: 200,
+    text: '',
+  };
+  note.schema.cards.push(card);
+  boardSelected = card.id;
+  touch(note);
+  renderBoard();
+  const text = $('board').querySelector(`[data-card="${card.id}"] .card-text`);
+  if (text) text.focus();
+});
+
+$('schema-link').addEventListener('click', () => {
+  linkMode = !linkMode;
+  linkFrom = null;
+  renderBoard();
+});
+
+// Supprime la carte sélectionnée, et les liens qui la touchent
+function deleteSelectedCard() {
+  const note = currentNote();
+  if (!note || !boardSelected) return;
+  note.schema.cards = note.schema.cards.filter((card) => card.id !== boardSelected);
+  note.schema.links = note.schema.links.filter((link) => link.from !== boardSelected && link.to !== boardSelected);
+  boardSelected = null;
+  touch(note);
+  renderBoard();
+}
+
+$('schema-delete').addEventListener('click', deleteSelectedCard);
+
+// Touche Suppr : efface la carte sélectionnée (sauf si on écrit dans une carte)
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Delete' || activeTab !== 'schema' || !boardSelected) return;
+  if (event.target.closest('[contenteditable]')) return;
+  deleteSelectedCard();
+});
+
+// Clic sur le tableau : sélection, liens ou déplacement
+$('board').addEventListener('pointerdown', (event) => {
+  const note = currentNote();
+  if (!note) return;
+  const box = event.target.closest('.card-box');
+
+  // Clic dans le vide : on désélectionne
+  if (!box) {
+    boardSelected = null;
+    linkFrom = null;
+    renderBoard();
+    return;
+  }
+
+  const card = note.schema.cards.find((c) => c.id === box.dataset.card);
+  if (!card) return;
+
+  // Mode « Relier » : on choisit deux cartes
+  if (linkMode && !event.target.closest('.card-text')) {
+    chooseForLink(note, card);
+    return;
+  }
+
+  boardSelected = card.id;
+  if (event.target.closest('.card-grip')) {
+    startDrag(event, note, card, box);
+  } else {
+    document.querySelectorAll('.card-box.selected').forEach((el) => el.classList.remove('selected'));
+    box.classList.add('selected');
+  }
+});
+
+function chooseForLink(note, card) {
+  if (!linkFrom) {
+    linkFrom = card.id;
+  } else {
+    const exists = note.schema.links.some((link) => link.from === linkFrom && link.to === card.id);
+    if (linkFrom !== card.id && !exists) {
+      note.schema.links.push({ from: linkFrom, to: card.id });
+      touch(note);
+    }
+    linkFrom = null;
+  }
+  renderBoard();
+}
+
+// Glisser une carte : on suit la souris, puis on sauvegarde à la fin
+function startDrag(event, note, card, box) {
+  event.preventDefault();
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const originX = card.x;
+  const originY = card.y;
+
+  const move = (e) => {
+    card.x = Math.max(0, originX + e.clientX - startX);
+    card.y = Math.max(0, originY + e.clientY - startY);
+    box.style.left = `${card.x}px`;
+    box.style.top = `${card.y}px`;
+    drawLinks();
+  };
+
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    touch(note);
+  };
+
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+// Écrire dans une carte : on sauvegarde sans redessiner (sinon le curseur sauterait)
+$('board').addEventListener('input', (event) => {
+  const text = event.target.closest('.card-text');
+  const note = currentNote();
+  if (!text || !note) return;
+  const card = note.schema.cards.find((c) => c.id === text.closest('[data-card]').dataset.card);
+  if (!card) return;
+  card.text = text.innerText;
+  touch(note);
+});
+
+</script>
+<script>
+// ===== Graphe : les notes reliées par leurs [[liens]] =====
+//
+// Chaque note est un point. Un lien [[Titre]] trace une ligne entre deux points.
+// La position des points vient d'une petite simulation physique : les notes
+// se repoussent, les liens les rapprochent, et le tout reste au centre.
+
+function renderGraph() {
+  const canvas = $('graph-canvas');
+  const box = canvas.parentElement;
+  const width = box.clientWidth;
+  const height = box.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+
+  // Taille nette même sur les écrans haute densité
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const entries = allNotes();
+  const nodes = entries.map(({ note }, i) => {
+    // Départ sur un cercle, pour que la simulation converge vite
+    const angle = (i / Math.max(1, entries.length)) * Math.PI * 2;
+    return {
+      id: note.id,
+      title: note.title || 'Sans titre',
+      x: width / 2 + Math.cos(angle) * width * 0.3,
+      y: height / 2 + Math.sin(angle) * height * 0.3,
+      vx: 0, vy: 0, degree: 0,
+    };
+  });
+
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const byTitle = new Map(nodes.map((n) => [n.title.toLowerCase(), n]));
+
+  // Un lien va de la note qui écrit [[Titre]] vers la note portant ce titre
+  const edges = [];
+  entries.forEach(({ note }) => {
+    linkTitles(note).forEach((title) => {
+      const source = byId.get(note.id);
+      const target = byTitle.get(title.toLowerCase());
+      if (source && target && target !== source) {
+        edges.push([source, target]);
+        source.degree++;
+        target.degree++;
+      }
+    });
+  });
+
+  // Simulation : 300 étapes suffisent pour une cinquantaine de notes
+  for (let step = 0; step < 300; step++) {
+    // Répulsion entre toutes les paires de notes
+    for (const a of nodes) {
+      for (const b of nodes) {
+        if (a === b) continue;
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const d2 = dx * dx + dy * dy + 0.01;
+        const d = Math.sqrt(d2);
+        const force = 900 / d2;
+        a.vx += (dx / d) * force;
+        a.vy += (dy / d) * force;
+      }
+    }
+    // Attraction le long des liens
+    for (const [a, b] of edges) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.sqrt(dx * dx + dy * dy) + 0.01;
+      const force = (d - 110) * 0.02;
+      a.vx += (dx / d) * force;
+      a.vy += (dy / d) * force;
+      b.vx -= (dx / d) * force;
+      b.vy -= (dy / d) * force;
+    }
+    // Rappel vers le centre, puis déplacement
+    for (const n of nodes) {
+      n.vx += (width / 2 - n.x) * 0.004;
+      n.vy += (height / 2 - n.y) * 0.004;
+      n.x = Math.min(width - 24, Math.max(24, n.x + n.vx * 0.5));
+      n.y = Math.min(height - 24, Math.max(24, n.y + n.vy * 0.5));
+      n.vx *= 0.6;
+      n.vy *= 0.6;
+    }
+  }
+
+  // Couleurs lues dans le thème, pour rester cohérent avec l'accent choisi
+  const styles = getComputedStyle(document.documentElement);
+  const accent = styles.getPropertyValue('--accent').trim() || '#1b6e66';
+  const ink = styles.getPropertyValue('--graph-ink').trim() || '#ecebe6';
+  const line = styles.getPropertyValue('--graph-line').trim() || 'rgba(255,255,255,0.2)';
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 1;
+  edges.forEach(([a, b]) => {
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  });
+
+  ctx.font = '13px "Instrument Sans", system-ui, sans-serif';
+  ctx.textBaseline = 'middle';
+  nodes.forEach((n) => {
+    const r = 5 + Math.min(9, n.degree * 2);
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = accent;
+    ctx.fill();
+    ctx.fillStyle = ink;
+    ctx.fillText(n.title, n.x + r + 6, n.y);
+  });
+
+  $('graph-count').textContent = `${nodes.length} note${nodes.length > 1 ? 's' : ''} · ${edges.length} lien${edges.length > 1 ? 's' : ''}`;
+
+  // Clic sur un point : on ouvre la note
+  canvas.onclick = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = nodes.find((n) => Math.hypot(n.x - x, n.y - y) <= 14);
+    if (hit) openNoteAnywhere(hit.id);
+  };
+}
+
+</script>
+<script>
+// ===== QR code : envoyer une note vers un autre appareil =====
+//
+// Le QR code contient un lien vers ton site, suivi du texte de la note encodé
+// (#carnet=…). Quand le téléphone scanne le code, il ouvre le site et la note
+// est ajoutée toute seule. Limite : seul le texte passe (pas les fichiers,
+// ni les schémas), et la note doit rester assez courte pour tenir dans un QR code.
+
+const QR_PREFIX = '#carnet=';
+const QR_MAX_LENGTH = 2200; // au-delà, le QR code devient trop dense pour être lu
+
+// Encode du texte (accents compris) en base64 « sûre » pour une adresse web
+function encodePayload(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  bytes.forEach((b) => { binary += String.fromCharCode(b); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodePayload(payload) {
+  const base = payload.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base.padEnd(base.length + ((4 - (base.length % 4)) % 4), '=');
+  const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+// Adresse de la page : celle du site si on est en ligne, sinon un espace à remplir
+function defaultSiteUrl() {
+  return location.protocol.startsWith('http') ? location.origin + location.pathname : '';
+}
+
+// ----- Créer le QR code d'une note -----
+
+function openQr() {
+  const note = currentNote();
+  if (!note) return;
+  $('qr-modal').hidden = false;
+  if (!$('qr-base').value) $('qr-base').value = defaultSiteUrl();
+  buildQr(note);
+}
+
+function buildQr(note) {
+  const base = $('qr-base').value.trim().split('#')[0];
+  const box = $('qr-box');
+  box.innerHTML = '';
+
+  if (!base) {
+    $('qr-warning').hidden = false;
+    $('qr-warning').textContent = 'Indique l’adresse de ton site en ligne : le téléphone doit pouvoir l’ouvrir.';
+    return;
+  }
+
+  const payload = encodePayload(JSON.stringify({ t: note.title || 'Sans titre', x: plainText(note.html) }));
+  const url = `${base}${QR_PREFIX}${payload}`;
+
+  const tooLong = url.length > QR_MAX_LENGTH;
+  $('qr-warning').hidden = !tooLong;
+  $('qr-warning').textContent = tooLong
+    ? `Note trop longue pour un QR code (${url.length} caractères, ${QR_MAX_LENGTH} au maximum). Raccourcis-la.`
+    : '';
+  if (tooLong) return;
+
+  new QRCode(box, { text: url, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.L });
+}
+
+$('qr-btn').addEventListener('click', openQr);
+$('qr-base').addEventListener('input', () => {
+  const note = currentNote();
+  if (note) buildQr(note);
+});
+
+// ----- Recevoir une note : depuis le lien ou depuis le QR code -----
+
+// Ajoute la note reçue dans la sous-catégorie ouverte (ou la première disponible)
+function importNote(data) {
+  const title = data.t || 'Note reçue';
+  if (!window.confirm(`Ajouter la note « ${title} » ?`)) return;
+
+  let place = currentSub() ? { cat: findCat(selection.cat), sub: currentSub() } : null;
+  if (!place) {
+    const cat = state.categories.find((c) => c.subs.length) || (() => {
+      const created = { id: uid(), name: 'Reçues', color: CATEGORY_COLORS[0], open: true, subs: [] };
+      state.categories.push(created);
+      return created;
+    })();
+    if (!cat.subs.length) cat.subs.push({ id: uid(), name: 'Importées', notes: [] });
+    place = { cat, sub: cat.subs[0] };
+  }
+
+  const html = `<p>${esc(data.x || '').replace(/\n/g, '<br>')}</p>`;
+  const note = makeNote(title, html);
+  place.sub.notes.push(note);
+  save();
+  toast(`Note « ${title} » ajoutée.`);
+  openNoteAnywhere(note.id);
+}
+
+// Lit le contenu après #carnet= et l'importe
+function importFromText(text) {
+  const index = text.indexOf(QR_PREFIX);
+  if (index < 0) return false;
+  try {
+    importNote(JSON.parse(decodePayload(text.slice(index + QR_PREFIX.length))));
+    return true;
+  } catch (error) {
+    toast('Ce QR code ne contient pas une note Carnet lisible.');
+    return false;
+  }
+}
+
+// Au chargement de la page : si l'adresse contient une note, on la propose
+function importFromHash() {
+  if (!location.hash.startsWith(QR_PREFIX)) return;
+  importFromText(location.hash);
+  history.replaceState(null, '', location.pathname + location.search);
+}
+
+// ----- Scanner un QR code avec la caméra -----
+
+let qrFrame = null;
+
+function stopQrScan() {
+  if (qrFrame) cancelAnimationFrame(qrFrame);
+  qrFrame = null;
+}
+
+async function openQrScan() {
+  $('qr-modal').hidden = true;
+  $('qr-scan-modal').hidden = false;
+  const status = $('qr-scan-status');
+  status.textContent = 'Pointe la caméra vers le QR code…';
+
+  if (typeof jsQR === 'undefined') {
+    status.textContent = 'Lecteur de QR code non chargé. Vérifie ta connexion internet.';
+    return;
+  }
+
+  const video = $('qr-video');
+  try {
+    await Camera.start(video);
+  } catch (error) {
+    toast('Caméra indisponible pour scanner le QR code.');
+    closeModals();
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  // Chaque image de la caméra est analysée à la recherche d'un QR code
+  const tick = () => {
+    if (video.readyState >= 2) {
+      const scale = Math.min(1, 640 / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(image.data, image.width, image.height);
+      if (code && code.data.includes(QR_PREFIX)) {
+        closeModals();
+        importFromText(code.data);
+        return;
+      }
+    }
+    qrFrame = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+$('qr-scan').addEventListener('click', openQrScan);
+
+importFromHash();
+
+</script>
+</body>
+</html>

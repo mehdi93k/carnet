@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Carnet : notes reliées, schémas, dictée vocale, fichiers scannés et QR codes.">
+  <title>Carnet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Menu -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">C</span>
+      <span class="brand-name">Carnet</span>
+      <button class="icon-btn" id="search-btn" title="Aller à une note (Ctrl+O)" aria-label="Aller à une note">
+        <i data-lucide="search"></i>
+      </button>
+    </div>
+
+    <nav class="nav" aria-label="Vues">
+      <button class="nav-item" data-view="home"><i data-lucide="house"></i>Accueil</button>
+      <button class="nav-item" data-view="graph"><i data-lucide="network"></i>Graphe</button>
+    </nav>
+
+    <div class="side-section">
+      <div class="sidebar-head">
+        <span class="label">Carnets</span>
+        <button class="icon-btn small" id="add-cat" title="Nouvelle catégorie" aria-label="Nouvelle catégorie">
+          <i data-lucide="plus"></i>
+        </button>
+      </div>
+      <nav class="tree-wrap" aria-label="Catégories et sous-catégories">
+        <ul class="tree" id="tree"></ul>
+      </nav>
+    </div>
+
+    <div class="side-section">
+      <div class="sidebar-head"><span class="label">Tags</span></div>
+      <ul class="tags" id="tags"></ul>
+    </div>
+
+    <div class="sidebar-foot">
+      <p class="sync-status"><span class="dot-teal" aria-hidden="true"></span>Enregistré sur cet appareil</p>
+      <div class="accents" id="accents" role="group" aria-label="Couleur d'accent"></div>
+    </div>
+  </aside>
+
+  <!-- La feuille : liste des notes et éditeur -->
+  <div class="sheet">
+
+    <section class="notes" id="notes-panel">
+      <header class="notes-head">
+        <button class="text-btn menu-btn" data-open-menu>Menu</button>
+        <div class="notes-title">
+          <h2 class="sub-title" id="sub-title">Mes notes</h2>
+          <p class="muted" id="sub-count"></p>
+        </div>
+        <button class="btn" id="new-note"><i data-lucide="square-pen"></i>Nouvelle note</button>
+      </header>
+      <ul class="note-list" id="note-list"></ul>
+    </section>
+
+    <section class="editor" id="editor">
+
+      <!-- Accueil : notes récentes et carnets -->
+      <div class="home" id="home">
+        <div class="home-top">
+          <button class="text-btn menu-btn" data-open-menu>Menu</button>
+          <svg class="home-art" viewBox="0 0 120 90" aria-hidden="true">
+            <rect x="26" y="14" width="64" height="58" rx="6" fill="var(--paper-2)" transform="rotate(-8 58 43)"/>
+            <rect x="30" y="16" width="64" height="58" rx="6" fill="var(--paper-3)" transform="rotate(-2 62 45)"/>
+            <rect x="34" y="18" width="64" height="58" rx="6" fill="var(--paper)" stroke="var(--border)"/>
+            <path d="M44 34h44M44 44h36M44 54h40M44 64h24" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+          </svg>
+        </div>
+        <h1 class="home-title">Carnet</h1>
+        <h2 class="section-title">Reprendre là où tu en étais</h2>
+        <ul class="recent" id="recent"></ul>
+        <h2 class="section-title">Tes carnets</h2>
+        <ul class="shelf" id="shelf"></ul>
+      </div>
+
+      <!-- Graphe des notes reliées -->
+      <div class="graph-view" id="graph-view" hidden>
+        <div class="graph-head">
+          <h2 class="section-title">Graphe des notes</h2>
+          <p class="muted" id="graph-count"></p>
+        </div>
+        <div class="graph-box"><canvas id="graph-canvas" aria-label="Graphe des liens entre notes"></canvas></div>
+      </div>
+
+      <!-- Une note ouverte -->
+      <div class="editor-inner" id="editor-inner" hidden>
+        <div class="editor-top">
+          <button class="text-btn back-btn" data-back>← Notes</button>
+          <nav class="tabs" aria-label="Volets de la note">
+            <button class="tab" data-tab="text"><i data-lucide="pen-line"></i>Texte</button>
+            <button class="tab" data-tab="schema"><i data-lucide="workflow"></i>Schéma</button>
+            <button class="tab" data-tab="files"><i data-lucide="paperclip"></i>Fichiers</button>
+            <button class="tab" data-tab="links"><i data-lucide="link-2"></i>Liens</button>
+          </nav>
+          <button class="icon-btn" id="qr-btn" title="QR code de la note" aria-label="QR code de la note"><i data-lucide="qr-code"></i></button>
+          <button class="icon-btn danger" id="delete-note" title="Supprimer la note" aria-label="Supprimer la note"><i data-lucide="trash-2"></i></button>
+        </div>
+
+        <!-- Volet Texte -->
+        <div class="pane" id="pane-text" data-pane="text">
+          <input class="title-input" id="note-title" placeholder="Sans titre" aria-label="Titre de la note">
+          <p class="meta" id="meta"></p>
+          <div class="cover-row" id="cover-row" aria-label="Couleur de la note"></div>
+
+          <div class="toolbar" id="toolbar">
+            <select id="font-select" title="Police" aria-label="Police">
+              <option value="'Instrument Sans', Inter, system-ui, sans-serif">Instrument Sans</option>
+              <option value="'Instrument Serif', Georgia, serif">Instrument Serif</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="Verdana, sans-serif">Verdana</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+              <option value="Segoe UI, system-ui, sans-serif">Segoe UI</option>
+            </select>
+            <select id="size-select" title="Taille" aria-label="Taille">
+              <option value="12">12</option>
+              <option value="14">14</option>
+              <option value="16" selected>16</option>
+              <option value="20">20</option>
+              <option value="24">24</option>
+              <option value="30">30</option>
+            </select>
+            <span class="tool-group">
+              <button data-cmd="bold" title="Gras" aria-label="Gras"><i data-lucide="bold"></i></button>
+              <button data-cmd="italic" title="Italique" aria-label="Italique"><i data-lucide="italic"></i></button>
+              <button data-cmd="underline" title="Souligné" aria-label="Souligné"><i data-lucide="underline"></i></button>
+            </span>
+            <span class="tool-group">
+              <label class="swatch" title="Couleur du texte">
+                <input type="color" id="color-input" value="#1f201d" aria-label="Couleur du texte">
+                <span class="swatch-letter">A</span>
+              </label>
+              <label class="swatch" title="Surlignage">
+                <input type="color" id="highlight-input" value="#f3e7a6" aria-label="Surlignage">
+                <span class="swatch-letter highlight">A</span>
+              </label>
+            </span>
+            <select id="heading-select" title="Style de paragraphe" aria-label="Style de paragraphe">
+              <option value="p">Texte normal</option>
+              <option value="h1">Titre 1</option>
+              <option value="h2">Titre 2</option>
+              <option value="h3">Titre 3</option>
+            </select>
+            <span class="tool-group">
+              <button data-cmd="insertUnorderedList" title="Liste à puces" aria-label="Liste à puces"><i data-lucide="list"></i></button>
+              <button data-cmd="insertOrderedList" title="Liste numérotée" aria-label="Liste numérotée"><i data-lucide="list-ordered"></i></button>
+            </span>
+            <span class="tool-group">
+              <button data-cmd="justifyLeft" title="Aligner à gauche" aria-label="Aligner à gauche"><i data-lucide="align-left"></i></button>
+              <button data-cmd="justifyCenter" title="Centrer" aria-label="Centrer"><i data-lucide="align-center"></i></button>
+              <button data-cmd="justifyRight" title="Aligner à droite" aria-label="Aligner à droite"><i data-lucide="align-right"></i></button>
+            </span>
+            <button data-cmd="removeFormat" title="Effacer la mise en forme" aria-label="Effacer la mise en forme"><i data-lucide="eraser"></i></button>
+            <button class="mic-btn" id="dictate-btn" aria-pressed="false" title="Dicter (reconnaissance vocale)"><i data-lucide="mic"></i>Dicter</button>
+          </div>
+          <span class="dictation-status" id="dictation-status" hidden>Je t’écoute</span>
+
+          <div class="note-body" id="note-body" contenteditable="true" spellcheck="true"
+               data-placeholder="Commence à écrire, ou appuie sur Dicter. Tape [[Titre]] pour relier une autre note."></div>
+        </div>
+
+        <!-- Volet Schéma -->
+        <div class="pane" id="pane-schema" data-pane="schema" hidden>
+          <div class="toolbar">
+            <button class="pill-btn" id="schema-add"><i data-lucide="plus"></i>Carte</button>
+            <button class="pill-btn" id="schema-link" aria-pressed="false"><i data-lucide="git-commit-horizontal"></i>Relier</button>
+            <button class="pill-btn" id="schema-delete"><i data-lucide="trash-2"></i>Supprimer</button>
+            <span class="muted hint" id="schema-hint"></span>
+          </div>
+          <div class="board" id="board"></div>
+        </div>
+
+        <!-- Volet Fichiers -->
+        <div class="pane" id="pane-files" data-pane="files" hidden>
+          <div class="drop-zone" id="drop-zone">
+            <i data-lucide="upload-cloud"></i>
+            <p>Glisse des fichiers ici</p>
+            <div class="drop-actions">
+              <button class="pill-btn" id="pick-files"><i data-lucide="paperclip"></i>Choisir des fichiers</button>
+              <button class="pill-btn primary" id="scan-btn"><i data-lucide="scan-line"></i>Scanner un document</button>
+            </div>
+            <input type="file" id="file-input" multiple hidden>
+          </div>
+          <ul class="file-list" id="file-list"></ul>
+        </div>
+
+        <!-- Volet Liens -->
+        <div class="pane" id="pane-links" data-pane="links" hidden>
+          <h3 class="section-title">Liens sortants</h3>
+          <ul class="link-list" id="links-out"></ul>
+          <h3 class="section-title">Liens entrants</h3>
+          <ul class="link-list" id="links-in"></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Aller à une note (Ctrl+O) -->
+<div class="modal" id="switcher-modal" hidden>
+  <div class="modal-card switcher" role="dialog" aria-modal="true" aria-label="Aller à une note">
+    <input class="switch-input" id="switch-input" placeholder="Nom d'une note, ou un mot de son contenu…" aria-label="Rechercher une note">
+    <ul class="switch-list" id="switch-list"></ul>
+  </div>
+</div>
+
+<!-- Question à l'utilisateur : remplace prompt() et confirm(), qui ne s'affichent pas ici -->
+<div class="modal" id="dialog-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <p class="dialog-message" id="dialog-message"></p>
+    <input class="switch-input" id="dialog-input" hidden aria-label="Réponse">
+    <div class="modal-actions">
+      <button class="pill-btn" id="dialog-cancel">Annuler</button>
+      <button class="pill-btn primary" id="dialog-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR code d'une note -->
+<div class="modal" id="qr-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 class="section-title">QR code de la note</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <p class="muted">Sur l'autre appareil, prends-le en photo : le texte de la note s'affiche. Copie-le, puis colle-le dans « Recevoir une note ». Le QR code contient le texte, pas les fichiers ni le schéma.</p>
+    <div class="qr-box" id="qr-box"></div>
+    <p class="warning" id="qr-warning" hidden></p>
+    <div class="modal-actions">
+      <button class="pill-btn" id="qr-scan"><i data-lucide="download"></i>Recevoir une note</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scanner de document : photo, recadrage, numérisation -->
+<div class="modal" id="scan-modal" hidden>
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2 class="section-title">Scanner un document</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+
+    <div id="scan-camera">
+      <p class="muted">Prends la feuille en photo bien à plat, ou choisis une photo déjà prise.</p>
+      <div class="modal-actions">
+        <button class="pill-btn primary" id="scan-capture"><i data-lucide="camera"></i>Prendre en photo</button>
+        <button class="pill-btn" id="scan-photo-btn"><i data-lucide="image"></i>Choisir une photo</button>
+      </div>
+      <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+      <input type="file" id="photo-input" accept="image/*" hidden>
+    </div>
+
+    <div id="scan-crop" hidden>
+      <p class="muted">Place les quatre coins sur les bords de la feuille. La page sera redressée et nettoyée.</p>
+      <div class="crop-stage" id="crop-stage">
+        <img id="crop-img" alt="Photo à recadrer">
+        <svg class="crop-svg" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <polygon id="crop-poly" points=""/>
+        </svg>
+        <button class="handle" data-corner="0" aria-label="Coin haut gauche"></button>
+        <button class="handle" data-corner="1" aria-label="Coin haut droit"></button>
+        <button class="handle" data-corner="2" aria-label="Coin bas droit"></button>
+        <button class="handle" data-corner="3" aria-label="Coin bas gauche"></button>
+      </div>
+      <div class="modal-actions">
+        <button class="pill-btn" id="scan-retake"><i data-lucide="rotate-ccw"></i>Reprendre</button>
+        <button class="pill-btn primary" id="scan-apply"><i data-lucide="check"></i>Numériser</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recevoir une note : photo d'un QR code, ou texte copié -->
+<div class="modal" id="qr-scan-modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 class="section-title">Recevoir une note</h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <p class="muted">Prends en photo le QR code d'une note, ou colle le texte qu'il contient.</p>
+    <div class="modal-actions">
+      <button class="pill-btn primary" id="qr-photo-btn"><i data-lucide="camera"></i>Photo du QR code</button>
+    </div>
+    <input type="file" id="qr-photo-input" accept="image/*" capture="environment" hidden>
+    <label class="field">Texte du QR code
+      <textarea id="qr-paste" rows="3" placeholder="carnet:…"></textarea>
+    </label>
+    <div class="modal-actions">
+      <button class="pill-btn primary" id="qr-paste-btn">Ajouter la note</button>
+    </div>
+  </div>
+</div>
+
+<!-- Aperçu d'une image jointe -->
+<div class="modal" id="preview-modal" hidden>
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2 class="section-title" id="preview-title"></h2>
+      <button class="icon-btn" data-close aria-label="Fermer"><i data-lucide="x"></i></button>
+    </div>
+    <img id="preview-img" class="preview-img" alt="">
+  </div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Bibliothèques externes (chargées depuis des CDN, rien à installer) -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+<script src="app.js"></script>
+<script src="voice.js"></script>
+<script src="files.js"></script>
+<script src="schema.js"></script>
+<script src="graph.js"></script>
+<script src="qr.js"></script>
+</body>
+</html>
